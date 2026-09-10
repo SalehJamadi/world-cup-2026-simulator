@@ -1,5 +1,6 @@
 import csv
 import random
+import time
 
 
 # Read teams from CSV
@@ -100,7 +101,12 @@ class MatchEngine:
         self.away_attack = 0
         self.away_defense = 0
 
+        self.match_events = []
+
+
+    # Calculate attack and defense power based on tactic
     def calculate_team_power(self, team):
+
         attack = team.strength
         defense = team.strength
 
@@ -121,48 +127,82 @@ class MatchEngine:
 
         return attack, defense
 
-    def calculate_goals(self, attack_power, defense_power):
+
+    # Choose a player who scores the goal
+    def choose_goal_scorer(self, team):
+
+        attackers = []
+        midfielders = []
+        defenders = []
+
+        for player in team.players:
+
+            if player.position_group == "ATT":
+                attackers.append(player)
+
+            elif player.position_group == "MID":
+                midfielders.append(player)
+
+            elif player.position_group == "DEF":
+                defenders.append(player)
+
+
+        # 70% attackers
+        # 20% midfielders
+        # 10% defenders
+        position_choice = random.choices(
+            ["ATT", "MID", "DEF"],
+            weights=[70, 20, 10],
+            k=1
+        )[0]
+
+
+        # Choose a player from the selected position
+        if position_choice == "ATT" and attackers:
+            return random.choice(attackers)
+
+        elif position_choice == "MID" and midfielders:
+            return random.choice(midfielders)
+
+        elif position_choice == "DEF" and defenders:
+            return random.choice(defenders)
+
+
+        # Fallback
+        return random.choice(team.players)
+
+
+    # Calculate how likely a team is to create a goal
+    def calculate_goal_chance(self, attack_power, defense_power):
+
         power_difference = attack_power - defense_power
 
-        # Base chance of creating a goal
-        chance = 25
+        # Base chance
+        chance = 10
 
-        # Team power difference
-        chance += power_difference * 1.5
+        # Strength difference
+        chance += power_difference * 0.7
 
         # Random luck
-        chance += random.uniform(-15, 15)
+        chance += random.uniform(-4, 4)
 
         # Keep chance inside a reasonable range
-        if chance < 5:
-            chance = 5
+        if chance < 3:
+            chance = 3
 
-        if chance > 60:
-            chance = 60
+        if chance > 25:
+            chance = 25
 
-        # Number of chances created
-        number_of_chances = random.randint(5, 15)
+        return chance
 
-        goals = 0
 
-        for i in range(number_of_chances):
-            random_number = random.uniform(0, 100)
-
-            if random_number < chance:
-                goals += 1
-
-        # Limit goals
-        if goals > 5:
-            goals = 5
-
-        return goals
-
+    # Play the match
     def play_match(self):
 
         print()
-        print("================================")
+        print("========================================")
         print("MATCH START")
-        print("================================")
+        print("========================================")
 
         print(
             self.home_team.team_name,
@@ -174,19 +214,27 @@ class MatchEngine:
 
         print(
             self.home_team.team_name,
-            "tactic:",
+            "Strength:",
+            self.home_team.strength,
+            "| Tactic:",
             self.home_team.tactic
         )
 
         print(
             self.away_team.team_name,
-            "tactic:",
+            "Strength:",
+            self.away_team.strength,
+            "| Tactic:",
             self.away_team.tactic
         )
 
         print()
+        print("----------------------------------------")
+        print("Match Events")
+        print("----------------------------------------")
 
-        # Calculate tactical powers
+
+        # Calculate team powers
         self.home_attack, self.home_defense = self.calculate_team_power(
             self.home_team
         )
@@ -195,19 +243,104 @@ class MatchEngine:
             self.away_team
         )
 
-        # Calculate goals
-        self.home_score = self.calculate_goals(
+
+        # Calculate goal chances
+        home_goal_chance = self.calculate_goal_chance(
             self.home_attack,
             self.away_defense
         )
 
-        self.away_score = self.calculate_goals(
+        away_goal_chance = self.calculate_goal_chance(
             self.away_attack,
             self.home_defense
         )
 
-        # Show result
-        print("Final Result:")
+
+        # Simulate minutes 0 to 90
+        for minute in range(0, 91):
+
+            # Create progress bar
+            progress_length = 30
+
+            progress = int(
+                (minute / 90) * progress_length
+            )
+
+            bar = (
+                "█" * progress
+                + "-" * (progress_length - progress)
+            )
+
+            print(
+                f"\r{minute:02d}' [{bar}]",
+                end="",
+                flush=True
+            )
+
+
+            # Chance of creating an event
+            event_chance = random.randint(1, 100)
+
+
+            # Check if a goal happens
+            if event_chance <= 4:
+
+                # Home team chance
+                if random.uniform(0, 100) < home_goal_chance:
+
+                    # Limit maximum goals
+                    if self.home_score < 5:
+
+                        scorer = self.choose_goal_scorer(
+                            self.home_team
+                        )
+
+                        self.home_score += 1
+
+                        event = (
+                            f"\n{minute}' GOAL! "
+                            f"{self.home_team.team_name} - "
+                            f"{scorer.player_name}"
+                        )
+
+                        print(event)
+
+                        self.match_events.append(event)
+
+
+                # Away team chance
+                elif random.uniform(0, 100) < away_goal_chance:
+
+                    # Limit maximum goals
+                    if self.away_score < 5:
+
+                        scorer = self.choose_goal_scorer(
+                            self.away_team
+                        )
+
+                        self.away_score += 1
+
+                        event = (
+                            f"\n{minute}' GOAL! "
+                            f"{self.away_team.team_name} - "
+                            f"{scorer.player_name}"
+                        )
+
+                        print(event)
+
+                        self.match_events.append(event)
+
+
+            # Match animation delay
+            time.sleep(0.2)
+
+
+        print()
+        print()
+        print("----------------------------------------")
+        print("FULL TIME")
+        print("----------------------------------------")
+
         print(
             self.home_team.team_name,
             self.home_score,
@@ -216,14 +349,119 @@ class MatchEngine:
             self.away_team.team_name
         )
 
-        print("================================")
+        print("----------------------------------------")
 
+
+        # Return final score
         return self.home_score, self.away_score
 
 
-# Check the created objects
-print("Created Team objects:", len(teams))
-print("Created Player objects:", len(players))
+# ==================================================
+# GROUP STAGE
+# ==================================================
+
+# Create groups
+groups = {}
+
+for team in teams:
+
+    if team.group_name not in groups:
+        groups[team.group_name] = []
+
+    groups[team.group_name].append(team)
+
+
+# Sort groups alphabetically
+groups = dict(sorted(groups.items()))
+
+
+# Show all groups
+print()
+print("========================================")
+print("WORLD CUP 2026 GROUPS")
+print("========================================")
+
+for group_name, group_teams in groups.items():
+
+    print()
+    print("GROUP", group_name)
+
+    for team in group_teams:
+        print(
+            team.team_id,
+            "-",
+            team.team_name
+        )
+
+
+print()
+print("========================================")
+print("GROUP STAGE MATCHES")
+print("========================================")
+
+
+# Create six matches for every group
+group_matches = {}
+
+for group_name, group_teams in groups.items():
+
+    matches = []
+
+    for i in range(len(group_teams)):
+
+        for j in range(i + 1, len(group_teams)):
+
+            home_team = group_teams[i]
+            away_team = group_teams[j]
+
+            matches.append(
+                (
+                    home_team,
+                    away_team
+                )
+            )
+
+
+    group_matches[group_name] = matches
+
+
+# Show all group matches
+for group_name, matches in group_matches.items():
+
+    print()
+    print("GROUP", group_name)
+
+    for match_number, match in enumerate(matches, start=1):
+
+        home_team = match[0]
+        away_team = match[1]
+
+        print(
+            match_number,
+            ".",
+            home_team.team_name,
+            "vs",
+            away_team.team_name
+        )
+
+
+# Check the number of groups
+print()
+print("========================================")
+print("GROUP STAGE INFORMATION")
+print("========================================")
+
+print(
+    "Number of groups:",
+    len(groups)
+)
+
+print(
+    "Number of group matches:",
+    sum(len(matches) for matches in group_matches.values())
+)
+
+print("========================================")
 
 
 # Available tactics
@@ -239,14 +477,23 @@ print()
 print("Available teams:")
 
 for team in teams:
-    print(team.team_id, "-", team.team_name)
+    print(
+        team.team_id,
+        "-",
+        team.team_name
+    )
 
 
-user_team_id = int(input("Choose your team ID: "))
+user_team_id = int(
+    input("Choose your team ID: ")
+)
+
 
 user_team = None
 
+
 for team in teams:
+
     if team.team_id == user_team_id:
         user_team = team
         break
@@ -266,18 +513,25 @@ else:
     print("2 - Control")
     print("3 - Defensive")
 
-    tactic_choice = int(input("Choose your tactic: "))
+    tactic_choice = int(
+        input("Choose your tactic: ")
+    )
+
 
     if tactic_choice == 1:
+
         user_team.tactic = "Attacking"
 
     elif tactic_choice == 2:
+
         user_team.tactic = "Control"
 
     elif tactic_choice == 3:
+
         user_team.tactic = "Defensive"
 
     else:
+
         print("Invalid tactic.")
         user_team = None
 
@@ -288,37 +542,68 @@ else:
         possible_opponents = []
 
         for team in teams:
+
             if team.team_id != user_team.team_id:
                 possible_opponents.append(team)
 
-        opponent_team = random.choice(possible_opponents)
+
+        opponent_team = random.choice(
+            possible_opponents
+        )
 
 
         # Computer chooses a random tactic
-        opponent_team.tactic = random.choice(tactics)
+        opponent_team.tactic = random.choice(
+            tactics
+        )
 
 
         # Show match information
         print()
-        print("================================")
+        print("========================================")
         print("MATCH INFORMATION")
-        print("================================")
+        print("========================================")
 
-        print("Your team:", user_team.team_name)
-        print("Your strength:", user_team.strength)
-        print("Your tactic:", user_team.tactic)
+        print(
+            "Your team:",
+            user_team.team_name
+        )
+
+        print(
+            "Your strength:",
+            user_team.strength
+        )
+
+        print(
+            "Your tactic:",
+            user_team.tactic
+        )
 
         print()
 
-        print("Opponent:", opponent_team.team_name)
-        print("Opponent strength:", opponent_team.strength)
-        print("Opponent tactic:", opponent_team.tactic)
+        print(
+            "Opponent:",
+            opponent_team.team_name
+        )
 
-        print("================================")
+        print(
+            "Opponent strength:",
+            opponent_team.strength
+        )
+
+        print(
+            "Opponent tactic:",
+            opponent_team.tactic
+        )
+
+        print("========================================")
 
 
         # Create the match
-        match = MatchEngine(user_team, opponent_team)
+        match = MatchEngine(
+            user_team,
+            opponent_team
+        )
 
 
         # Play the match
