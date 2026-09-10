@@ -1,0 +1,49 @@
+team_id,team_name,country_code,group_name
+1,Mexico,MEX,A
+2,South Korea,KOR,A
+3,South Africa,RSA,A
+4,Czechia,CZE,A
+5,Canada,CAN,B
+6,Switzerland,SUI,B
+7,Qatar,QAT,B
+8,Bosnia and Herzegovina,BIH,B
+9,Brazil,BRA,C
+10,Morocco,MAR,C
+11,Scotland,SCO,C
+12,Haiti,HAI,C
+13,United States,USA,D
+14,Paraguay,PAR,D
+15,Australia,AUS,D
+16,Türkiye,TUR,D
+17,Germany,GER,E
+18,Ecuador,ECU,E
+19,Côte d'Ivoire,CIV,E
+20,Curaçao,CUW,E
+21,Netherlands,NED,F
+22,Japan,JPN,F
+23,Tunisia,TUN,F
+24,Sweden,SWE,F
+25,Belgium,BEL,G
+26,Iran,IRN,G
+27,Egypt,EGY,G
+28,New Zealand,NZL,G
+29,Spain,ESP,H
+30,Uruguay,URU,H
+31,Saudi Arabia,KSA,H
+32,Cabo Verde,CPV,H
+33,France,FRA,I
+34,Senegal,SEN,I
+35,Norway,NOR,I
+36,Iraq,IRQ,I
+37,Argentina,ARG,J
+38,Austria,AUT,J
+39,Algeria,ALG,J
+40,Jordan,JOR,J
+41,Portugal,POR,K
+42,Colombia,COL,K
+43,Uzbekistan,UZB,K
+44,DR Congo,COD,K
+45,England,ENG,L
+46,Croatia,CRO,L
+47,Panama,PAN,L
+48,Ghana,GHA,L
