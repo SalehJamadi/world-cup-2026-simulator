@@ -50,16 +50,23 @@ class Team:
 
 class Player:
 
-    def __init__(self, player_id, team_id, player_name, position_group, rating):
+    def __init__(
+        self,
+        player_id,
+        team_id,
+        player_name,
+        position_group,
+        rating
+    ):
         self.player_id = int(player_id)
         self.team_id = int(team_id)
         self.player_name = player_name
         self.position_group = position_group
         self.rating = int(rating)
 
-        # Tournament statistics
         self.matches = 0
         self.goals = 0
+        self.assists = 0
         self.player_of_match = 0
         self.yellow_cards = 0
 
@@ -71,6 +78,7 @@ class Player:
 team_objects = []
 
 for team_data in teams:
+
     team = Team(
         team_data["team_id"],
         team_data["team_name"],
@@ -88,6 +96,7 @@ for team_data in teams:
 player_objects = []
 
 for player_data in players:
+
     player = Player(
         player_data["player_id"],
         player_data["team_id"],
@@ -120,9 +129,14 @@ for team in team_objects:
     if not team.players:
         continue
 
-    total_rating = sum(player.rating for player in team.players)
+    total_rating = sum(
+        player.rating
+        for player in team.players
+    )
 
-    team.strength = round(total_rating / len(team.players))
+    team.strength = round(
+        total_rating / len(team.players)
+    )
 
     defenders = [
         player.rating
@@ -143,19 +157,29 @@ for team in team_objects:
     ]
 
     if defenders:
+
         team.defense_strength = round(
             sum(defenders) / len(defenders)
         )
 
     if midfielders:
+
         team.midfield_strength = round(
             sum(midfielders) / len(midfielders)
         )
 
     if attackers:
+
         team.attack_strength = round(
             sum(attackers) / len(attackers)
         )
+
+
+# =========================
+# Match History
+# =========================
+
+match_history = []
 
 
 # =========================
@@ -165,6 +189,7 @@ for team in team_objects:
 class MatchEngine:
 
     def __init__(self, home_team, away_team):
+
         self.home_team = home_team
         self.away_team = away_team
 
@@ -176,6 +201,9 @@ class MatchEngine:
 
         self.home_goal_scorers = []
         self.away_goal_scorers = []
+
+        self.home_assists = []
+        self.away_assists = []
 
         self.home_stats = {
             "possession": 50,
@@ -197,7 +225,9 @@ class MatchEngine:
 
         self.match_events = []
 
-        self.played_players = []
+        self.extra_time = False
+        self.penalty_shootout = False
+        self.penalty_winner = None
 
     # =========================
     # Tactic settings
@@ -206,6 +236,7 @@ class MatchEngine:
     def get_tactic_modifiers(self, tactic):
 
         if tactic == "Attacking":
+
             return {
                 "attack": 8,
                 "defense": -5,
@@ -214,6 +245,7 @@ class MatchEngine:
             }
 
         if tactic == "Defensive":
+
             return {
                 "attack": -5,
                 "defense": 8,
@@ -234,22 +266,39 @@ class MatchEngine:
 
     def choose_cpu_tactic(self, team, opponent):
 
-        difference = team.strength - opponent.strength
+        difference = (
+            team.strength
+            - opponent.strength
+        )
 
         if difference >= 8:
+
             return random.choices(
-                ["Attacking", "Control", "Defensive"],
+                [
+                    "Attacking",
+                    "Control",
+                    "Defensive"
+                ],
                 weights=[60, 35, 5]
             )[0]
 
         if difference <= -8:
+
             return random.choices(
-                ["Attacking", "Control", "Defensive"],
+                [
+                    "Attacking",
+                    "Control",
+                    "Defensive"
+                ],
                 weights=[10, 40, 50]
             )[0]
 
         return random.choices(
-            ["Attacking", "Control", "Defensive"],
+            [
+                "Attacking",
+                "Control",
+                "Defensive"
+            ],
             weights=[25, 55, 20]
         )[0]
 
@@ -259,11 +308,12 @@ class MatchEngine:
 
     def choose_user_tactic(self):
 
-        opponent = self.away_team
-
         if self.home_team == user_team:
+
             opponent = self.away_team
+
         else:
+
             opponent = self.home_team
 
         print()
@@ -271,19 +321,37 @@ class MatchEngine:
         print("TACTICAL DECISION")
         print("=" * 50)
 
-        print(f"Your team: {user_team.team_name}")
-        print(f"Your strength: {user_team.strength}")
+        print(
+            f"Your team: {user_team.team_name}"
+        )
 
-        print(f"Opponent: {opponent.team_name}")
-        print(f"Opponent strength: {opponent.strength}")
+        print(
+            f"Your strength: {user_team.strength}"
+        )
 
-        difference = user_team.strength - opponent.strength
+        print(
+            f"Opponent: {opponent.team_name}"
+        )
+
+        print(
+            f"Opponent strength: {opponent.strength}"
+        )
+
+        difference = (
+            user_team.strength
+            - opponent.strength
+        )
 
         if difference >= 8:
+
             print("Opponent level: WEAKER")
+
         elif difference <= -8:
+
             print("Opponent level: STRONGER")
+
         else:
+
             print("Opponent level: SIMILAR")
 
         print()
@@ -293,7 +361,9 @@ class MatchEngine:
 
         while True:
 
-            choice = input("Choose your tactic: ")
+            choice = input(
+                "Choose your tactic: "
+            )
 
             if choice == "1":
                 return "Attacking"
@@ -304,7 +374,9 @@ class MatchEngine:
             if choice == "3":
                 return "Defensive"
 
-            print("Invalid choice. Please try again.")
+            print(
+                "Invalid choice. Please try again."
+            )
 
     # =========================
     # Prepare match
@@ -312,12 +384,16 @@ class MatchEngine:
 
     def prepare_match(self):
 
-        home_modifiers = self.get_tactic_modifiers(
-            self.home_tactic
+        home_modifiers = (
+            self.get_tactic_modifiers(
+                self.home_tactic
+            )
         )
 
-        away_modifiers = self.get_tactic_modifiers(
-            self.away_tactic
+        away_modifiers = (
+            self.get_tactic_modifiers(
+                self.away_tactic
+            )
         )
 
         home_attack = (
@@ -362,12 +438,18 @@ class MatchEngine:
 
         home_goal_chance = (
             0.018
-            + (home_attack_power - away_defense) * 0.0012
+            + (
+                home_attack_power
+                - away_defense
+            ) * 0.0012
         )
 
         away_goal_chance = (
             0.018
-            + (away_attack_power - home_defense) * 0.0012
+            + (
+                away_attack_power
+                - home_defense
+            ) * 0.0012
         )
 
         home_goal_chance = max(
@@ -380,10 +462,12 @@ class MatchEngine:
             min(0.075, away_goal_chance)
         )
 
-        # Possession
         home_possession = (
             50
-            + (home_midfield - away_midfield) * 0.7
+            + (
+                home_midfield
+                - away_midfield
+            ) * 0.7
             + home_modifiers["possession"]
             - away_modifiers["possession"]
         )
@@ -393,7 +477,9 @@ class MatchEngine:
             min(70, home_possession)
         )
 
-        away_possession = 100 - home_possession
+        away_possession = (
+            100 - home_possession
+        )
 
         self.home_stats["possession"] = round(
             home_possession
@@ -403,7 +489,10 @@ class MatchEngine:
             away_possession
         )
 
-        return home_goal_chance, away_goal_chance
+        return (
+            home_goal_chance,
+            away_goal_chance
+        )
 
     # =========================
     # Choose goal scorer
@@ -435,15 +524,50 @@ class MatchEngine:
         )[0]
 
         if position == "ATT" and attackers:
-            return random.choice(attackers)
+
+            return random.choice(
+                attackers
+            )
 
         if position == "MID" and midfielders:
-            return random.choice(midfielders)
+
+            return random.choice(
+                midfielders
+            )
 
         if defenders:
-            return random.choice(defenders)
 
-        return random.choice(team.players)
+            return random.choice(
+                defenders
+            )
+
+        return random.choice(
+            team.players
+        )
+
+    # =========================
+    # Choose assist player
+    # =========================
+
+    def choose_assist_player(
+        self,
+        team,
+        scorer
+    ):
+
+        possible_players = [
+            player
+            for player in team.players
+            if player != scorer
+        ]
+
+        if not possible_players:
+
+            return None
+
+        return random.choice(
+            possible_players
+        )
 
     # =========================
     # Simulate match minute
@@ -458,88 +582,123 @@ class MatchEngine:
     ):
 
         # Shots
+
         if random.random() < 0.14:
+
             self.home_stats["shots"] += 1
 
             if random.random() < 0.38:
-                self.home_stats["shots_on_target"] += 1
+
+                self.home_stats[
+                    "shots_on_target"
+                ] += 1
 
         if random.random() < 0.13:
+
             self.away_stats["shots"] += 1
 
             if random.random() < 0.37:
-                self.away_stats["shots_on_target"] += 1
+
+                self.away_stats[
+                    "shots_on_target"
+                ] += 1
 
         # Corners
+
         if random.random() < 0.035:
-            self.home_stats["corners"] += 1
+
+            self.home_stats[
+                "corners"
+            ] += 1
 
         if random.random() < 0.033:
-            self.away_stats["corners"] += 1
+
+            self.away_stats[
+                "corners"
+            ] += 1
 
         # Fouls
-        if random.random() < 0.08:
-            self.home_stats["fouls"] += 1
 
         if random.random() < 0.08:
-            self.away_stats["fouls"] += 1
+
+            self.home_stats[
+                "fouls"
+            ] += 1
+
+        if random.random() < 0.08:
+
+            self.away_stats[
+                "fouls"
+            ] += 1
 
         # Yellow cards
-        if random.random() < 0.012:
-            self.home_stats["yellow_cards"] += 1
-
-            if self.home_team.players:
-                yellow_player = random.choice(
-                    self.home_team.players
-                )
-
-                yellow_player.yellow_cards += 1
-
-                self.match_events.append(
-                    f"{minute:02d}' Yellow card - "
-                    f"{yellow_player.player_name} "
-                    f"({self.home_team.team_name})"
-                )
-
-                if show_events:
-                    print()
-                    print(
-                        f"{minute:02d}' Yellow card - "
-                        f"{yellow_player.player_name}"
-                    )
 
         if random.random() < 0.012:
-            self.away_stats["yellow_cards"] += 1
 
-            if self.away_team.players:
-                yellow_player = random.choice(
-                    self.away_team.players
-                )
+            self.home_stats[
+                "yellow_cards"
+            ] += 1
 
-                yellow_player.yellow_cards += 1
+            yellow_player = random.choice(
+                self.home_team.players
+            )
 
-                self.match_events.append(
-                    f"{minute:02d}' Yellow card - "
-                    f"{yellow_player.player_name} "
-                    f"({self.away_team.team_name})"
-                )
+            yellow_player.yellow_cards += 1
 
-                if show_events:
-                    print()
-                    print(
-                        f"{minute:02d}' Yellow card - "
-                        f"{yellow_player.player_name}"
-                    )
+            event = (
+                f"{minute:02d}' Yellow card - "
+                f"{yellow_player.player_name} "
+                f"({self.home_team.team_name})"
+            )
+
+            self.match_events.append(
+                event
+            )
+
+            if show_events:
+
+                print()
+                print(event)
+
+        if random.random() < 0.012:
+
+            self.away_stats[
+                "yellow_cards"
+            ] += 1
+
+            yellow_player = random.choice(
+                self.away_team.players
+            )
+
+            yellow_player.yellow_cards += 1
+
+            event = (
+                f"{minute:02d}' Yellow card - "
+                f"{yellow_player.player_name} "
+                f"({self.away_team.team_name})"
+            )
+
+            self.match_events.append(
+                event
+            )
+
+            if show_events:
+
+                print()
+                print(event)
 
         # Home goal
+
         if random.random() < home_goal_chance:
 
             if self.home_score < 5:
 
                 self.home_score += 1
 
-                scorer = self.choose_goal_scorer(
-                    self.home_team
+                scorer = (
+                    self.choose_goal_scorer(
+                        self.home_team
+                    )
                 )
 
                 scorer.goals += 1
@@ -548,27 +707,55 @@ class MatchEngine:
                     scorer
                 )
 
+                assist_player = (
+                    self.choose_assist_player(
+                        self.home_team,
+                        scorer
+                    )
+                )
+
+                if assist_player:
+
+                    assist_player.assists += 1
+
+                    self.home_assists.append(
+                        assist_player
+                    )
+
                 event = (
                     f"{minute:02d}' GOAL! "
                     f"{self.home_team.team_name} - "
                     f"{scorer.player_name}"
                 )
 
-                self.match_events.append(event)
+                self.match_events.append(
+                    event
+                )
 
                 if show_events:
+
                     print()
                     print(event)
 
+                    if assist_player:
+
+                        print(
+                            f"Assist: "
+                            f"{assist_player.player_name}"
+                        )
+
         # Away goal
+
         elif random.random() < away_goal_chance:
 
             if self.away_score < 5:
 
                 self.away_score += 1
 
-                scorer = self.choose_goal_scorer(
-                    self.away_team
+                scorer = (
+                    self.choose_goal_scorer(
+                        self.away_team
+                    )
                 )
 
                 scorer.goals += 1
@@ -577,17 +764,42 @@ class MatchEngine:
                     scorer
                 )
 
+                assist_player = (
+                    self.choose_assist_player(
+                        self.away_team,
+                        scorer
+                    )
+                )
+
+                if assist_player:
+
+                    assist_player.assists += 1
+
+                    self.away_assists.append(
+                        assist_player
+                    )
+
                 event = (
                     f"{minute:02d}' GOAL! "
                     f"{self.away_team.team_name} - "
                     f"{scorer.player_name}"
                 )
 
-                self.match_events.append(event)
+                self.match_events.append(
+                    event
+                )
 
                 if show_events:
+
                     print()
                     print(event)
+
+                    if assist_player:
+
+                        print(
+                            f"Assist: "
+                            f"{assist_player.player_name}"
+                        )
 
     # =========================
     # Update player appearances
@@ -596,9 +808,11 @@ class MatchEngine:
     def update_player_appearances(self):
 
         for player in self.home_team.players:
+
             player.matches += 1
 
         for player in self.away_team.players:
+
             player.matches += 1
 
     # =========================
@@ -620,37 +834,73 @@ class MatchEngine:
             score = player.rating * 0.10
 
             player_goals = 0
+            player_assists = 0
 
             if player in self.home_goal_scorers:
-                player_goals = self.home_goal_scorers.count(
-                    player
+
+                player_goals = (
+                    self.home_goal_scorers.count(
+                        player
+                    )
                 )
 
             if player in self.away_goal_scorers:
-                player_goals = self.away_goal_scorers.count(
-                    player
+
+                player_goals = (
+                    self.away_goal_scorers.count(
+                        player
+                    )
+                )
+
+            if player in self.home_assists:
+
+                player_assists = (
+                    self.home_assists.count(
+                        player
+                    )
+                )
+
+            if player in self.away_assists:
+
+                player_assists = (
+                    self.away_assists.count(
+                        player
+                    )
                 )
 
             score += player_goals * 4
 
+            score += player_assists * 2
+
             if player_goals > 0:
+
                 score += 2
 
             if (
-                self.home_score > self.away_score
-                and player.team_id == self.home_team.team_id
+                self.home_score
+                > self.away_score
+                and player.team_id
+                == self.home_team.team_id
             ):
+
                 score += 2
 
             if (
-                self.away_score > self.home_score
-                and player.team_id == self.away_team.team_id
+                self.away_score
+                > self.home_score
+                and player.team_id
+                == self.away_team.team_id
             ):
+
                 score += 2
 
-            score += random.uniform(0, 2)
+            score += random.uniform(
+                0,
+                2
+            )
 
             if score > best_score:
+
                 best_score = score
                 best_player = player
 
@@ -664,7 +914,10 @@ class MatchEngine:
     # Display match statistics
     # =========================
 
-    def show_match_statistics(self, player_of_match):
+    def show_match_statistics(
+        self,
+        player_of_match
+    ):
 
         print()
         print("=" * 60)
@@ -716,20 +969,29 @@ class MatchEngine:
         print()
 
         if self.home_goal_scorers:
+
             print("Home goal scorers:")
 
             for player in self.home_goal_scorers:
-                print(f"- {player.player_name}")
+
+                print(
+                    f"- {player.player_name}"
+                )
 
         if self.away_goal_scorers:
+
             print("Away goal scorers:")
 
             for player in self.away_goal_scorers:
-                print(f"- {player.player_name}")
+
+                print(
+                    f"- {player.player_name}"
+                )
 
         print()
 
         if player_of_match:
+
             print(
                 f"PLAYER OF THE MATCH: "
                 f"{player_of_match.player_name}"
@@ -743,9 +1005,10 @@ class MatchEngine:
 
     def play_match(self):
 
-        home_goal_chance, away_goal_chance = (
-            self.prepare_match()
-        )
+        (
+            home_goal_chance,
+            away_goal_chance
+        ) = self.prepare_match()
 
         self.update_player_appearances()
 
@@ -775,12 +1038,15 @@ class MatchEngine:
             progress_length = 30
 
             progress = int(
-                (minute / 90) * progress_length
+                (minute / 90)
+                * progress_length
             )
 
             bar = (
                 "█" * progress
-                + "-" * (progress_length - progress)
+                + "-" * (
+                    progress_length - progress
+                )
             )
 
             print(
@@ -817,7 +1083,10 @@ class MatchEngine:
             player_of_match
         )
 
-        return self.home_score, self.away_score
+        return (
+            self.home_score,
+            self.away_score
+        )
 
     # =========================
     # Quick CPU match
@@ -825,19 +1094,24 @@ class MatchEngine:
 
     def quick_match(self):
 
-        self.home_tactic = self.choose_cpu_tactic(
-            self.home_team,
-            self.away_team
+        self.home_tactic = (
+            self.choose_cpu_tactic(
+                self.home_team,
+                self.away_team
+            )
         )
 
-        self.away_tactic = self.choose_cpu_tactic(
-            self.away_team,
-            self.home_team
+        self.away_tactic = (
+            self.choose_cpu_tactic(
+                self.away_team,
+                self.home_team
+            )
         )
 
-        home_goal_chance, away_goal_chance = (
-            self.prepare_match()
-        )
+        (
+            home_goal_chance,
+            away_goal_chance
+        ) = self.prepare_match()
 
         self.update_player_appearances()
 
@@ -860,6 +1134,500 @@ class MatchEngine:
             player_of_match
         )
 
+    # =========================
+    # Extra time
+    # =========================
+
+    def play_extra_time(
+        self,
+        show_events=True
+    ):
+
+        self.extra_time = True
+
+        print()
+        print("=" * 50)
+        print("EXTRA TIME")
+        print("=" * 50)
+
+        (
+            home_goal_chance,
+            away_goal_chance
+        ) = self.prepare_match()
+
+        home_goal_chance *= 0.70
+        away_goal_chance *= 0.70
+
+        for minute in range(91, 121):
+
+            self.simulate_minute(
+                minute,
+                home_goal_chance,
+                away_goal_chance,
+                show_events=show_events
+            )
+
+            if show_events:
+
+                time.sleep(0.15)
+
+        print()
+
+        print(
+            f"AFTER EXTRA TIME: "
+            f"{self.home_team.team_name} "
+            f"{self.home_score} - "
+            f"{self.away_score} "
+            f"{self.away_team.team_name}"
+        )
+
+    # =========================
+    # CPU penalty kick
+    # =========================
+
+    def cpu_penalty_kick(self):
+
+        directions = [
+            "Left",
+            "Center",
+            "Right"
+        ]
+
+        shot_direction = random.choice(
+            directions
+        )
+
+        goalkeeper_direction = random.choice(
+            directions
+        )
+
+        if (
+            shot_direction
+            == goalkeeper_direction
+        ):
+
+            return (
+                False,
+                shot_direction,
+                goalkeeper_direction
+            )
+
+        return (
+            True,
+            shot_direction,
+            goalkeeper_direction
+        )
+
+    # =========================
+    # User penalty kick
+    # =========================
+
+    def user_penalty_kick(
+        self,
+        player
+    ):
+
+        directions = {
+            "1": "Left",
+            "2": "Center",
+            "3": "Right"
+        }
+
+        print()
+        print(
+            f"Penalty taker: "
+            f"{player.player_name}"
+        )
+
+        print()
+        print("Choose your shot direction:")
+        print("1. Left")
+        print("2. Center")
+        print("3. Right")
+
+        while True:
+
+            choice = input(
+                "Your choice: "
+            )
+
+            if choice in directions:
+
+                shot_direction = (
+                    directions[choice]
+                )
+
+                break
+
+            print(
+                "Invalid choice."
+            )
+
+        goalkeeper_direction = random.choice(
+            [
+                "Left",
+                "Center",
+                "Right"
+            ]
+        )
+
+        print()
+        print(
+            f"You shot: "
+            f"{shot_direction}"
+        )
+
+        print(
+            f"Goalkeeper dived: "
+            f"{goalkeeper_direction}"
+        )
+
+        if (
+            shot_direction
+            == goalkeeper_direction
+        ):
+
+            print()
+            print("SAVED!")
+
+            return False
+
+        print()
+        print("GOAL!")
+
+        return True
+
+    # =========================
+    # Select penalty takers
+    # =========================
+
+    def get_penalty_takers(
+        self,
+        team
+    ):
+
+        players = team.players.copy()
+
+        players.sort(
+            key=lambda player: player.rating,
+            reverse=True
+        )
+
+        return players
+
+    # =========================
+    # Penalty shootout
+    # =========================
+
+    def play_penalty_shootout(self):
+
+        self.penalty_shootout = True
+
+        print()
+        print("=" * 50)
+        print("PENALTY SHOOTOUT")
+        print("=" * 50)
+
+        home_takers = (
+            self.get_penalty_takers(
+                self.home_team
+            )
+        )
+
+        away_takers = (
+            self.get_penalty_takers(
+                self.away_team
+            )
+        )
+
+        home_penalty_score = 0
+        away_penalty_score = 0
+
+        # First five penalties
+
+        for round_number in range(5):
+
+            print()
+            print(
+                f"Penalty round "
+                f"{round_number + 1}"
+            )
+
+            # Home team
+
+            home_player = home_takers[
+                round_number
+                % len(home_takers)
+            ]
+
+            if self.home_team == user_team:
+
+                home_scored = (
+                    self.user_penalty_kick(
+                        home_player
+                    )
+                )
+
+            else:
+
+                (
+                    home_scored,
+                    shot_direction,
+                    goalkeeper_direction
+                ) = self.cpu_penalty_kick()
+
+                print(
+                    f"{home_player.player_name}: "
+                    f"{shot_direction}"
+                )
+
+                print(
+                    f"Goalkeeper: "
+                    f"{goalkeeper_direction}"
+                )
+
+                if home_scored:
+
+                    print("GOAL!")
+
+                else:
+
+                    print("SAVED!")
+
+            if home_scored:
+
+                home_penalty_score += 1
+
+            # Away team
+
+            away_player = away_takers[
+                round_number
+                % len(away_takers)
+            ]
+
+            if self.away_team == user_team:
+
+                away_scored = (
+                    self.user_penalty_kick(
+                        away_player
+                    )
+                )
+
+            else:
+
+                (
+                    away_scored,
+                    shot_direction,
+                    goalkeeper_direction
+                ) = self.cpu_penalty_kick()
+
+                print(
+                    f"{away_player.player_name}: "
+                    f"{shot_direction}"
+                )
+
+                print(
+                    f"Goalkeeper: "
+                    f"{goalkeeper_direction}"
+                )
+
+                if away_scored:
+
+                    print("GOAL!")
+
+                else:
+
+                    print("SAVED!")
+
+            if away_scored:
+
+                away_penalty_score += 1
+
+            print()
+            print(
+                f"Penalty score: "
+                f"{home_penalty_score} - "
+                f"{away_penalty_score}"
+            )
+
+            remaining = (
+                4 - round_number
+            )
+
+            if (
+                home_penalty_score
+                > away_penalty_score
+                + remaining
+            ):
+
+                break
+
+            if (
+                away_penalty_score
+                > home_penalty_score
+                + remaining
+            ):
+
+                break
+
+        # Sudden death
+
+        sudden_death_round = 1
+
+        while (
+            home_penalty_score
+            == away_penalty_score
+        ):
+
+            print()
+            print(
+                f"SUDDEN DEATH "
+                f"ROUND "
+                f"{sudden_death_round}"
+            )
+
+            home_player = home_takers[
+                (
+                    5
+                    + sudden_death_round
+                    - 1
+                )
+                % len(home_takers)
+            ]
+
+            away_player = away_takers[
+                (
+                    5
+                    + sudden_death_round
+                    - 1
+                )
+                % len(away_takers)
+            ]
+
+            # Home team
+
+            if self.home_team == user_team:
+
+                home_scored = (
+                    self.user_penalty_kick(
+                        home_player
+                    )
+                )
+
+            else:
+
+                (
+                    home_scored,
+                    shot_direction,
+                    goalkeeper_direction
+                ) = self.cpu_penalty_kick()
+
+                print(
+                    f"{home_player.player_name}: "
+                    f"{shot_direction}"
+                )
+
+                print(
+                    f"Goalkeeper: "
+                    f"{goalkeeper_direction}"
+                )
+
+                print(
+                    "GOAL!"
+                    if home_scored
+                    else "SAVED!"
+                )
+
+            # Away team
+
+            if self.away_team == user_team:
+
+                away_scored = (
+                    self.user_penalty_kick(
+                        away_player
+                    )
+                )
+
+            else:
+
+                (
+                    away_scored,
+                    shot_direction,
+                    goalkeeper_direction
+                ) = self.cpu_penalty_kick()
+
+                print(
+                    f"{away_player.player_name}: "
+                    f"{shot_direction}"
+                )
+
+                print(
+                    f"Goalkeeper: "
+                    f"{goalkeeper_direction}"
+                )
+
+                print(
+                    "GOAL!"
+                    if away_scored
+                    else "SAVED!"
+                )
+
+            if home_scored:
+
+                home_penalty_score += 1
+
+            if away_scored:
+
+                away_penalty_score += 1
+
+            if (
+                home_scored
+                and not away_scored
+            ):
+
+                break
+
+            if (
+                away_scored
+                and not home_scored
+            ):
+
+                break
+
+            sudden_death_round += 1
+
+        print()
+        print("=" * 50)
+        print(
+            f"PENALTY SCORE: "
+            f"{home_penalty_score} - "
+            f"{away_penalty_score}"
+        )
+        print("=" * 50)
+
+        if (
+            home_penalty_score
+            > away_penalty_score
+        ):
+
+            self.penalty_winner = (
+                self.home_team
+            )
+
+        else:
+
+            self.penalty_winner = (
+                self.away_team
+            )
+
+        print()
+        print(
+            f"Penalty winner: "
+            f"{self.penalty_winner.team_name}"
+        )
+
+        return self.penalty_winner
+
 
 # =========================
 # Groups
@@ -870,9 +1638,12 @@ groups = {}
 for team in team_objects:
 
     if team.group_name not in groups:
+
         groups[team.group_name] = []
 
-    groups[team.group_name].append(team)
+    groups[team.group_name].append(
+        team
+    )
 
 
 # =========================
@@ -885,9 +1656,14 @@ for group_name, group_teams in groups.items():
 
     matches = []
 
-    for i in range(len(group_teams)):
+    for i in range(
+        len(group_teams)
+    ):
 
-        for j in range(i + 1, len(group_teams)):
+        for j in range(
+            i + 1,
+            len(group_teams)
+        ):
 
             matches.append(
                 (
@@ -911,15 +1687,26 @@ for group_name, group_teams in groups.items():
 
     for team in group_teams:
 
-        group_tables[group_name][team.team_id] = {
+        group_tables[
+            group_name
+        ][team.team_id] = {
+
             "team": team,
+
             "played": 0,
+
             "wins": 0,
+
             "draws": 0,
+
             "losses": 0,
+
             "goals_for": 0,
+
             "goals_against": 0,
+
             "goal_difference": 0,
+
             "points": 0
         }
 
@@ -936,22 +1723,34 @@ def update_group_table(
     away_score
 ):
 
-    home_data = group_tables[group_name][
-        home_team.team_id
-    ]
+    home_data = (
+        group_tables[group_name]
+        [home_team.team_id]
+    )
 
-    away_data = group_tables[group_name][
-        away_team.team_id
-    ]
+    away_data = (
+        group_tables[group_name]
+        [away_team.team_id]
+    )
 
     home_data["played"] += 1
     away_data["played"] += 1
 
-    home_data["goals_for"] += home_score
-    home_data["goals_against"] += away_score
+    home_data["goals_for"] += (
+        home_score
+    )
 
-    away_data["goals_for"] += away_score
-    away_data["goals_against"] += home_score
+    home_data["goals_against"] += (
+        away_score
+    )
+
+    away_data["goals_for"] += (
+        away_score
+    )
+
+    away_data["goals_against"] += (
+        home_score
+    )
 
     home_data["goal_difference"] = (
         home_data["goals_for"]
@@ -993,7 +1792,9 @@ def update_group_table(
 def sort_group_table(group_name):
 
     table = list(
-        group_tables[group_name].values()
+        group_tables[
+            group_name
+        ].values()
     )
 
     table.sort(
@@ -1014,11 +1815,15 @@ def sort_group_table(group_name):
 
 def show_group_table(group_name):
 
-    table = sort_group_table(group_name)
+    table = sort_group_table(
+        group_name
+    )
 
     print()
     print("=" * 75)
-    print(f"GROUP {group_name}")
+    print(
+        f"GROUP {group_name}"
+    )
     print("=" * 75)
 
     print(
@@ -1055,6 +1860,89 @@ def show_group_table(group_name):
 
 
 # =========================
+# Record match history
+# =========================
+
+def record_match_history(
+    stage,
+    home_team,
+    away_team,
+    home_score,
+    away_score,
+    winner=None,
+    penalty=False
+):
+
+    match_history.append({
+
+        "stage": stage,
+
+        "home_team": home_team.team_name,
+
+        "away_team": away_team.team_name,
+
+        "home_score": home_score,
+
+        "away_score": away_score,
+
+        "winner": (
+            winner.team_name
+            if winner
+            else None
+        ),
+
+        "penalty": penalty
+    })
+
+
+# =========================
+# Show match history
+# =========================
+
+def show_match_history():
+
+    print()
+    print("=" * 70)
+    print("MATCH HISTORY")
+    print("=" * 70)
+
+    if not match_history:
+
+        print(
+            "No matches recorded."
+        )
+
+        return
+
+    for index, match in enumerate(
+        match_history,
+        start=1
+    ):
+
+        result = (
+            f"{match['home_team']} "
+            f"{match['home_score']} - "
+            f"{match['away_score']} "
+            f"{match['away_team']}"
+        )
+
+        print(
+            f"{index:02d}. "
+            f"[{match['stage']}] "
+            f"{result}"
+        )
+
+        if match["penalty"]:
+
+            print(
+                f"    Winner on penalties: "
+                f"{match['winner']}"
+            )
+
+    print("=" * 70)
+
+
+# =========================
 # Choose user's team
 # =========================
 
@@ -1079,27 +1967,38 @@ print()
 while True:
 
     try:
+
         selected_team_id = int(
-            input("Choose your team ID: ")
+            input(
+                "Choose your team ID: "
+            )
         )
 
         selected_team = next(
             (
                 team
                 for team in team_objects
-                if team.team_id == selected_team_id
+                if team.team_id
+                == selected_team_id
             ),
             None
         )
 
         if selected_team:
+
             user_team = selected_team
+
             break
 
-        print("Invalid team ID.")
+        print(
+            "Invalid team ID."
+        )
 
     except ValueError:
-        print("Please enter a valid number.")
+
+        print(
+            "Please enter a valid number."
+        )
 
 
 print()
@@ -1123,14 +2022,19 @@ print("=" * 50)
 print("GROUP STAGE")
 print("=" * 50)
 
-for group_name in sorted(group_matches.keys()):
+for group_name in sorted(
+    group_matches.keys()
+):
 
     print()
     print(
-        f"Starting Group {group_name}"
+        f"Starting Group "
+        f"{group_name}"
     )
 
-    for home_team, away_team in group_matches[group_name]:
+    for home_team, away_team in (
+        group_matches[group_name]
+    ):
 
         match_engine = MatchEngine(
             home_team,
@@ -1138,12 +2042,14 @@ for group_name in sorted(group_matches.keys()):
         )
 
         # User match
+
         if (
             home_team == user_team
             or away_team == user_team
         ):
 
             if home_team == user_team:
+
                 match_engine.home_tactic = (
                     match_engine.choose_user_tactic()
                 )
@@ -1168,11 +2074,21 @@ for group_name in sorted(group_matches.keys()):
                     )
                 )
 
-            home_score, away_score = (
-                match_engine.play_match()
+            (
+                home_score,
+                away_score
+            ) = match_engine.play_match()
+
+            record_match_history(
+                "Group Stage",
+                home_team,
+                away_team,
+                home_score,
+                away_score
             )
 
         # CPU match
+
         else:
 
             (
@@ -1193,6 +2109,14 @@ for group_name in sorted(group_matches.keys()):
                 f"{player_of_match.player_name}"
             )
 
+            record_match_history(
+                "Group Stage",
+                home_team,
+                away_team,
+                home_score,
+                away_score
+            )
+
         update_group_table(
             group_name,
             home_team,
@@ -1201,7 +2125,9 @@ for group_name in sorted(group_matches.keys()):
             away_score
         )
 
-    show_group_table(group_name)
+    show_group_table(
+        group_name
+    )
 
 
 # =========================
@@ -1215,7 +2141,8 @@ print("=" * 50)
 
 print()
 print(
-    f"Your team: {user_team.team_name}"
+    f"Your team: "
+    f"{user_team.team_name}"
 )
 
 show_group_table(
@@ -1228,6 +2155,7 @@ show_group_table(
 # =========================
 
 qualified_teams = []
+
 third_place_teams = []
 
 for group_name in group_tables:
@@ -1236,14 +2164,17 @@ for group_name in group_tables:
         group_name
     )
 
-    first_place = table[0]["team"]
-    qualified_teams.append(first_place)
+    qualified_teams.append(
+        table[0]["team"]
+    )
 
-    second_place = table[1]["team"]
-    qualified_teams.append(second_place)
+    qualified_teams.append(
+        table[1]["team"]
+    )
 
-    third_place = table[2]
-    third_place_teams.append(third_place)
+    third_place_teams.append(
+        table[2]
+    )
 
 
 third_place_teams.sort(
@@ -1261,7 +2192,9 @@ best_third_place_teams = (
 )
 
 
-for team_data in best_third_place_teams:
+for team_data in (
+    best_third_place_teams
+):
 
     qualified_teams.append(
         team_data["team"]
@@ -1295,7 +2228,9 @@ print(
 # Knockout Stage
 # =========================
 
-knockout_teams = qualified_teams.copy()
+knockout_teams = (
+    qualified_teams.copy()
+)
 
 random.shuffle(
     knockout_teams
@@ -1308,7 +2243,8 @@ random.shuffle(
 
 def play_knockout_match(
     home_team,
-    away_team
+    away_team,
+    stage
 ):
 
     match_engine = MatchEngine(
@@ -1316,8 +2252,8 @@ def play_knockout_match(
         away_team
     )
 
-    # User chooses tactic before every
-    # knockout match
+    # User match
+
     if (
         home_team == user_team
         or away_team == user_team
@@ -1349,9 +2285,12 @@ def play_knockout_match(
                 )
             )
 
-        home_score, away_score = (
-            match_engine.play_match()
-        )
+        (
+            home_score,
+            away_score
+        ) = match_engine.play_match()
+
+    # CPU match
 
     else:
 
@@ -1361,6 +2300,7 @@ def play_knockout_match(
             player_of_match
         ) = match_engine.quick_match()
 
+        print()
         print(
             f"{home_team.team_name} "
             f"{home_score} - "
@@ -1373,28 +2313,116 @@ def play_knockout_match(
             f"{player_of_match.player_name}"
         )
 
-    # Knockout matches cannot end in a draw
-    if home_score == away_score:
+    # Normal winner
 
-        print()
-        print("Match is tied.")
-        print("Penalty shootout...")
+    if home_score > away_score:
 
-        winner = random.choice(
-            [home_team, away_team]
+        winner = home_team
+
+        record_match_history(
+            stage,
+            home_team,
+            away_team,
+            home_score,
+            away_score,
+            winner
+        )
+
+        return winner
+
+    if away_score > home_score:
+
+        winner = away_team
+
+        record_match_history(
+            stage,
+            home_team,
+            away_team,
+            home_score,
+            away_score,
+            winner
+        )
+
+        return winner
+
+    # =========================
+    # Extra Time
+    # =========================
+
+    match_engine.play_extra_time(
+        show_events=(
+            home_team == user_team
+            or away_team == user_team
+        )
+    )
+
+    home_score = (
+        match_engine.home_score
+    )
+
+    away_score = (
+        match_engine.away_score
+    )
+
+    if home_score > away_score:
+
+        winner = home_team
+
+        record_match_history(
+            stage,
+            home_team,
+            away_team,
+            home_score,
+            away_score,
+            winner
         )
 
         print(
-            f"Winner: "
+            f"Winner after extra time: "
             f"{winner.team_name}"
         )
 
         return winner
 
-    if home_score > away_score:
-        return home_team
+    if away_score > home_score:
 
-    return away_team
+        winner = away_team
+
+        record_match_history(
+            stage,
+            home_team,
+            away_team,
+            home_score,
+            away_score,
+            winner
+        )
+
+        print(
+            f"Winner after extra time: "
+            f"{winner.team_name}"
+        )
+
+        return winner
+
+    # =========================
+    # Penalty Shootout
+    # =========================
+
+    winner = (
+        match_engine.play_penalty_shootout()
+    )
+
+    record_match_history(
+        stage,
+        home_team,
+        away_team,
+        home_score,
+        away_score,
+        winner,
+        penalty=True
+    )
+
+    return winner
 
 
 # =========================
@@ -1408,11 +2436,16 @@ print("=" * 50)
 
 round_of_32_winners = []
 
-for i in range(0, 32, 2):
+for i in range(
+    0,
+    32,
+    2
+):
 
     winner = play_knockout_match(
         knockout_teams[i],
-        knockout_teams[i + 1]
+        knockout_teams[i + 1],
+        "Round of 32"
     )
 
     round_of_32_winners.append(
@@ -1439,7 +2472,8 @@ for i in range(
 
     winner = play_knockout_match(
         round_of_32_winners[i],
-        round_of_32_winners[i + 1]
+        round_of_32_winners[i + 1],
+        "Round of 16"
     )
 
     round_of_16_winners.append(
@@ -1466,7 +2500,8 @@ for i in range(
 
     winner = play_knockout_match(
         round_of_16_winners[i],
-        round_of_16_winners[i + 1]
+        round_of_16_winners[i + 1],
+        "Quarter-final"
     )
 
     quarter_final_winners.append(
@@ -1493,7 +2528,8 @@ for i in range(
 
     winner = play_knockout_match(
         quarter_final_winners[i],
-        quarter_final_winners[i + 1]
+        quarter_final_winners[i + 1],
+        "Semi-final"
     )
 
     semi_final_winners.append(
@@ -1520,7 +2556,8 @@ final_away_team = (
 
 champion = play_knockout_match(
     final_home_team,
-    final_away_team
+    final_away_team,
+    "Final"
 )
 
 
@@ -1542,6 +2579,7 @@ sorted_scorers = sorted(
     player_objects,
     key=lambda player: (
         player.goals,
+        player.assists,
         player.player_of_match,
         player.rating
     ),
@@ -1570,7 +2608,8 @@ if top_scorers:
             (
                 team
                 for team in team_objects
-                if team.team_id == player.team_id
+                if team.team_id
+                == player.team_id
             ),
             None
         )
@@ -1584,7 +2623,9 @@ if top_scorers:
 
 else:
 
-    print("No goals recorded.")
+    print(
+        "No goals recorded."
+    )
 
 
 # =========================
@@ -1609,7 +2650,10 @@ top_potm_players = [
 
 
 print()
-print("MOST PLAYER OF THE MATCH AWARDS")
+print(
+    "MOST PLAYER OF THE MATCH AWARDS"
+)
+
 print("-" * 60)
 
 if top_potm_players:
@@ -1623,7 +2667,8 @@ if top_potm_players:
             (
                 team
                 for team in team_objects
-                if team.team_id == player.team_id
+                if team.team_id
+                == player.team_id
             ),
             None
         )
@@ -1643,6 +2688,62 @@ else:
 
 
 # =========================
+# Most Assists
+# =========================
+
+sorted_assists = sorted(
+    player_objects,
+    key=lambda player: (
+        player.assists,
+        player.goals,
+        player.rating
+    ),
+    reverse=True
+)
+
+top_assists = [
+    player
+    for player in sorted_assists
+    if player.assists > 0
+]
+
+
+print()
+print("MOST ASSISTS")
+print("-" * 60)
+
+if top_assists:
+
+    for index, player in enumerate(
+        top_assists[:10],
+        start=1
+    ):
+
+        team = next(
+            (
+                team
+                for team in team_objects
+                if team.team_id
+                == player.team_id
+            ),
+            None
+        )
+
+        print(
+            f"{index}. "
+            f"{player.player_name} - "
+            f"{player.assists} assists - "
+            f"{team.team_name}"
+        )
+
+else:
+
+    print(
+        "No assists recorded."
+    )
+
+
+# =========================
 # Champion
 # =========================
 
@@ -1653,6 +2754,58 @@ print(
     f"{champion.team_name}"
 )
 print("=" * 60)
+
+
+# =========================
+# User Match History
+# =========================
+
+print()
+print("=" * 60)
+print("YOUR MATCH HISTORY")
+print("=" * 60)
+
+user_matches = [
+    match
+    for match in match_history
+    if (
+        match["home_team"]
+        == user_team.team_name
+        or
+        match["away_team"]
+        == user_team.team_name
+    )
+]
+
+if user_matches:
+
+    for match in user_matches:
+
+        print()
+
+        print(
+            f"[{match['stage']}]"
+        )
+
+        print(
+            f"{match['home_team']} "
+            f"{match['home_score']} - "
+            f"{match['away_score']} "
+            f"{match['away_team']}"
+        )
+
+        if match["penalty"]:
+
+            print(
+                f"Winner on penalties: "
+                f"{match['winner']}"
+            )
+
+else:
+
+    print(
+        "No matches found."
+    )
 
 
 # =========================
@@ -1668,6 +2821,7 @@ user_players = sorted(
     user_team.players,
     key=lambda player: (
         player.goals,
+        player.assists,
         player.player_of_match,
         player.rating
     ),
@@ -1687,10 +2841,11 @@ print(
     f"{'Player':<30}"
     f"{'Matches':<10}"
     f"{'Goals':<10}"
+    f"{'Assists':<10}"
     f"{'POTM':<10}"
 )
 
-print("-" * 60)
+print("-" * 70)
 
 for player in user_players:
 
@@ -1698,8 +2853,21 @@ for player in user_players:
         f"{player.player_name:<30}"
         f"{player.matches:<10}"
         f"{player.goals:<10}"
+        f"{player.assists:<10}"
         f"{player.player_of_match:<10}"
     )
+
+
+# =========================
+# Full Match History
+# =========================
+
+show_match_history()
+
+
+# =========================
+# Tournament Complete
+# =========================
 
 print()
 print("=" * 60)
