@@ -31,6 +31,7 @@ with open("world_cup_2026_players.csv", "r", encoding="utf-8") as file:
 class Team:
 
     def __init__(self, team_id, team_name, country_code, group_name):
+
         self.team_id = int(team_id)
         self.team_name = team_name
         self.country_code = country_code
@@ -58,17 +59,25 @@ class Player:
         position_group,
         rating
     ):
+
         self.player_id = int(player_id)
         self.team_id = int(team_id)
         self.player_name = player_name
         self.position_group = position_group
         self.rating = int(rating)
 
+        # Tournament statistics
+
         self.matches = 0
         self.goals = 0
         self.assists = 0
         self.player_of_match = 0
         self.yellow_cards = 0
+
+        # Match ratings
+
+        self.match_ratings = []
+        self.average_rating = 0
 
 
 # =========================
@@ -117,6 +126,7 @@ for team in team_objects:
     for player in player_objects:
 
         if player.team_id == team.team_id:
+
             team.players.append(player)
 
 
@@ -228,6 +238,8 @@ class MatchEngine:
         self.extra_time = False
         self.penalty_shootout = False
         self.penalty_winner = None
+
+        self.player_match_ratings = {}
 
     # =========================
     # Tactic settings
@@ -495,6 +507,39 @@ class MatchEngine:
         )
 
     # =========================
+    # Choose weighted player
+    # =========================
+
+    def choose_weighted_player(
+        self,
+        players_list
+    ):
+
+        if not players_list:
+
+            return None
+
+        weights = []
+
+        for player in players_list:
+
+            # Rating has a direct effect
+            # on the probability of selection.
+
+            weight = max(
+                1,
+                player.rating - 45
+            )
+
+            weights.append(weight)
+
+        return random.choices(
+            players_list,
+            weights=weights,
+            k=1
+        )[0]
+
+    # =========================
     # Choose goal scorer
     # =========================
 
@@ -518,6 +563,9 @@ class MatchEngine:
             if player.position_group == "DEF"
         ]
 
+        # Stronger players have a higher
+        # chance to be selected.
+
         position = random.choices(
             ["ATT", "MID", "DEF"],
             weights=[70, 20, 10]
@@ -525,23 +573,23 @@ class MatchEngine:
 
         if position == "ATT" and attackers:
 
-            return random.choice(
+            return self.choose_weighted_player(
                 attackers
             )
 
         if position == "MID" and midfielders:
 
-            return random.choice(
+            return self.choose_weighted_player(
                 midfielders
             )
 
         if defenders:
 
-            return random.choice(
+            return self.choose_weighted_player(
                 defenders
             )
 
-        return random.choice(
+        return self.choose_weighted_player(
             team.players
         )
 
@@ -565,9 +613,39 @@ class MatchEngine:
 
             return None
 
-        return random.choice(
-            possible_players
-        )
+        # Midfielders and attackers are more
+        # likely to provide assists.
+
+        weighted_players = []
+
+        for player in possible_players:
+
+            weight = max(
+                1,
+                player.rating - 45
+            )
+
+            if player.position_group == "MID":
+
+                weight *= 1.5
+
+            elif player.position_group == "ATT":
+
+                weight *= 1.25
+
+            else:
+
+                weight *= 0.65
+
+            weighted_players.append(
+                weight
+            )
+
+        return random.choices(
+            possible_players,
+            weights=weighted_players,
+            k=1
+        )[0]
 
     # =========================
     # Simulate match minute
@@ -581,9 +659,46 @@ class MatchEngine:
         show_events=True
     ):
 
-        # Shots
+        # =========================
+        # Tactic modifiers
+        # =========================
 
-        if random.random() < 0.14:
+        home_modifiers = (
+            self.get_tactic_modifiers(
+                self.home_tactic
+            )
+        )
+
+        away_modifiers = (
+            self.get_tactic_modifiers(
+                self.away_tactic
+            )
+
+        # =========================
+        # Shots
+        # =========================
+
+        home_shot_chance = (
+            0.14
+            + home_modifiers["shots"] * 0.01
+        )
+
+        away_shot_chance = (
+            0.13
+            + away_modifiers["shots"] * 0.01
+        )
+
+        home_shot_chance = max(
+            0.04,
+            min(0.30, home_shot_chance)
+        )
+
+        away_shot_chance = max(
+            0.04,
+            min(0.30, away_shot_chance)
+        )
+
+        if random.random() < home_shot_chance:
 
             self.home_stats["shots"] += 1
 
@@ -593,7 +708,7 @@ class MatchEngine:
                     "shots_on_target"
                 ] += 1
 
-        if random.random() < 0.13:
+        if random.random() < away_shot_chance:
 
             self.away_stats["shots"] += 1
 
@@ -603,7 +718,9 @@ class MatchEngine:
                     "shots_on_target"
                 ] += 1
 
+        # =========================
         # Corners
+        # =========================
 
         if random.random() < 0.035:
 
@@ -617,7 +734,9 @@ class MatchEngine:
                 "corners"
             ] += 1
 
+        # =========================
         # Fouls
+        # =========================
 
         if random.random() < 0.08:
 
@@ -631,7 +750,9 @@ class MatchEngine:
                 "fouls"
             ] += 1
 
+        # =========================
         # Yellow cards
+        # =========================
 
         if random.random() < 0.012:
 
@@ -687,7 +808,9 @@ class MatchEngine:
                 print()
                 print(event)
 
+        # =========================
         # Home goal
+        # =========================
 
         if random.random() < home_goal_chance:
 
@@ -744,7 +867,9 @@ class MatchEngine:
                             f"{assist_player.player_name}"
                         )
 
+        # =========================
         # Away goal
+        # =========================
 
         elif random.random() < away_goal_chance:
 
@@ -816,6 +941,146 @@ class MatchEngine:
             player.matches += 1
 
     # =========================
+    # Calculate Player Rating
+    # =========================
+
+    def calculate_player_ratings(self):
+
+        all_players = (
+            self.home_team.players
+            + self.away_team.players
+        )
+
+        for player in all_players:
+
+            rating = 6.0
+
+            # Individual quality
+
+            rating += (
+                player.rating - 75
+            ) * 0.025
+
+            # Goals
+
+            if player in self.home_goal_scorers:
+
+                goals = (
+                    self.home_goal_scorers.count(
+                        player
+                    )
+                )
+
+                rating += goals * 1.4
+
+            if player in self.away_goal_scorers:
+
+                goals = (
+                    self.away_goal_scorers.count(
+                        player
+                    )
+                )
+
+                rating += goals * 1.4
+
+            # Assists
+
+            if player in self.home_assists:
+
+                assists = (
+                    self.home_assists.count(
+                        player
+                    )
+                )
+
+                rating += assists * 0.9
+
+            if player in self.away_assists:
+
+                assists = (
+                    self.away_assists.count(
+                        player
+                    )
+                )
+
+                rating += assists * 0.9
+
+            # Winning bonus
+
+            if (
+                self.home_score
+                > self.away_score
+                and player.team_id
+                == self.home_team.team_id
+            ):
+
+                rating += 0.5
+
+            elif (
+                self.away_score
+                > self.home_score
+                and player.team_id
+                == self.away_team.team_id
+            ):
+
+                rating += 0.5
+
+            # Yellow card penalty
+
+            if player in self.home_team.players:
+
+                if player in [
+                    p
+                    for p in self.home_team.players
+                    if p.yellow_cards > 0
+                ]:
+
+                    rating -= 0.3
+
+            if player in self.away_team.players:
+
+                if player in [
+                    p
+                    for p in self.away_team.players
+                    if p.yellow_cards > 0
+                ]:
+
+                    rating -= 0.3
+
+            # Random performance factor
+
+            rating += random.uniform(
+                -0.6,
+                0.6
+            )
+
+            # Keep rating between 4.5 and 10
+
+            rating = max(
+                4.5,
+                min(10.0, rating)
+            )
+
+            rating = round(
+                rating,
+                1
+            )
+
+            self.player_match_ratings[
+                player.player_id
+            ] = rating
+
+            player.match_ratings.append(
+                rating
+            )
+
+            player.average_rating = round(
+                sum(player.match_ratings)
+                / len(player.match_ratings),
+                1
+            )
+
+    # =========================
     # Calculate Player of Match
     # =========================
 
@@ -831,72 +1096,50 @@ class MatchEngine:
 
         for player in all_players:
 
-            score = player.rating * 0.10
+            score = (
+                self.player_match_ratings.get(
+                    player.player_id,
+                    6.0
+                )
+            )
 
-            player_goals = 0
-            player_assists = 0
+            # Extra weight for goals and assists
 
             if player in self.home_goal_scorers:
 
-                player_goals = (
+                score += (
                     self.home_goal_scorers.count(
                         player
-                    )
+                    ) * 0.8
                 )
 
             if player in self.away_goal_scorers:
 
-                player_goals = (
+                score += (
                     self.away_goal_scorers.count(
                         player
-                    )
+                    ) * 0.8
                 )
 
             if player in self.home_assists:
 
-                player_assists = (
+                score += (
                     self.home_assists.count(
                         player
-                    )
+                    ) * 0.4
                 )
 
             if player in self.away_assists:
 
-                player_assists = (
+                score += (
                     self.away_assists.count(
                         player
-                    )
+                    ) * 0.4
                 )
-
-            score += player_goals * 4
-
-            score += player_assists * 2
-
-            if player_goals > 0:
-
-                score += 2
-
-            if (
-                self.home_score
-                > self.away_score
-                and player.team_id
-                == self.home_team.team_id
-            ):
-
-                score += 2
-
-            if (
-                self.away_score
-                > self.home_score
-                and player.team_id
-                == self.away_team.team_id
-            ):
-
-                score += 2
 
             score += random.uniform(
                 0,
-                2
+                0.4
             )
 
             if score > best_score:
@@ -909,6 +1152,69 @@ class MatchEngine:
             best_player.player_of_match += 1
 
         return best_player
+
+    # =========================
+    # Display player ratings
+    # =========================
+
+    def show_player_ratings(self):
+
+        print()
+        print("=" * 75)
+        print("PLAYER RATINGS")
+        print("=" * 75)
+
+        print(
+            f"{'Player':<30}"
+            f"{'Team':<25}"
+            f"{'Rating':<10}"
+        )
+
+        print("-" * 75)
+
+        all_players = (
+            self.home_team.players
+            + self.away_team.players
+        )
+
+        sorted_players = sorted(
+            all_players,
+            key=lambda player:
+                self.player_match_ratings.get(
+                    player.player_id,
+                    0
+                ),
+            reverse=True
+        )
+
+        for player in sorted_players:
+
+            if player.team_id == self.home_team.team_id:
+
+                team_name = (
+                    self.home_team.team_name
+                )
+
+            else:
+
+                team_name = (
+                    self.away_team.team_name
+                )
+
+            match_rating = (
+                self.player_match_ratings.get(
+                    player.player_id,
+                    0
+                )
+            )
+
+            print(
+                f"{player.player_name:<30}"
+                f"{team_name:<25}"
+                f"{match_rating:<10.1f}"
+            )
+
+        print("=" * 75)
 
     # =========================
     # Display match statistics
@@ -972,29 +1278,84 @@ class MatchEngine:
 
             print("Home goal scorers:")
 
-            for player in self.home_goal_scorers:
+            for index, player in enumerate(
+                self.home_goal_scorers,
+                start=1
+            ):
 
-                print(
-                    f"- {player.player_name}"
-                )
+                assist = None
+
+                if index <= len(
+                    self.home_assists
+                ):
+
+                    assist = (
+                        self.home_assists[index - 1]
+                    )
+
+                if assist:
+
+                    print(
+                        f"- {player.player_name} "
+                        f"(Assist: "
+                        f"{assist.player_name})"
+                    )
+
+                else:
+
+                    print(
+                        f"- {player.player_name}"
+                    )
 
         if self.away_goal_scorers:
 
+            print()
             print("Away goal scorers:")
 
-            for player in self.away_goal_scorers:
+            for index, player in enumerate(
+                self.away_goal_scorers,
+                start=1
+            ):
 
-                print(
-                    f"- {player.player_name}"
-                )
+                assist = None
+
+                if index <= len(
+                    self.away_assists
+                ):
+
+                    assist = (
+                        self.away_assists[index - 1]
+                    )
+
+                if assist:
+
+                    print(
+                        f"- {player.player_name} "
+                        f"(Assist: "
+                        f"{assist.player_name})"
+                    )
+
+                else:
+
+                    print(
+                        f"- {player.player_name}"
+                    )
 
         print()
 
         if player_of_match:
 
+            potm_rating = (
+                self.player_match_ratings.get(
+                    player_of_match.player_id,
+                    0
+                )
+            )
+
             print(
                 f"PLAYER OF THE MATCH: "
-                f"{player_of_match.player_name}"
+                f"{player_of_match.player_name} "
+                f"({potm_rating:.1f})"
             )
 
         print("=" * 60)
@@ -1075,6 +1436,8 @@ class MatchEngine:
             f"{self.away_team.team_name}"
         )
 
+        self.calculate_player_ratings()
+
         player_of_match = (
             self.calculate_player_of_match()
         )
@@ -1083,9 +1446,12 @@ class MatchEngine:
             player_of_match
         )
 
+        self.show_player_ratings()
+
         return (
             self.home_score,
-            self.away_score
+            self.away_score,
+            player_of_match
         )
 
     # =========================
@@ -1123,6 +1489,8 @@ class MatchEngine:
                 away_goal_chance,
                 show_events=False
             )
+
+        self.calculate_player_ratings()
 
         player_of_match = (
             self.calculate_player_of_match()
@@ -1180,6 +1548,8 @@ class MatchEngine:
             f"{self.away_score} "
             f"{self.away_team.team_name}"
         )
+
+        self.calculate_player_ratings()
 
     # =========================
     # CPU penalty kick
@@ -1386,13 +1756,11 @@ class MatchEngine:
                     f"{goalkeeper_direction}"
                 )
 
-                if home_scored:
-
-                    print("GOAL!")
-
-                else:
-
-                    print("SAVED!")
+                print(
+                    "GOAL!"
+                    if home_scored
+                    else "SAVED!"
+                )
 
             if home_scored:
 
@@ -1431,13 +1799,11 @@ class MatchEngine:
                     f"{goalkeeper_direction}"
                 )
 
-                if away_scored:
-
-                    print("GOAL!")
-
-                else:
-
-                    print("SAVED!")
+                print(
+                    "GOAL!"
+                    if away_scored
+                    else "SAVED!"
+                )
 
             if away_scored:
 
@@ -2076,7 +2442,8 @@ for group_name in sorted(
 
             (
                 home_score,
-                away_score
+                away_score,
+                player_of_match
             ) = match_engine.play_match()
 
             record_match_history(
@@ -2107,6 +2474,11 @@ for group_name in sorted(
             print(
                 f"Player of the Match: "
                 f"{player_of_match.player_name}"
+            )
+
+            print(
+                f"Player of the Match Rating: "
+                f"{match_engine.player_match_ratings.get(player_of_match.player_id, 0):.1f}"
             )
 
             record_match_history(
@@ -2287,7 +2659,8 @@ def play_knockout_match(
 
         (
             home_score,
-            away_score
+            away_score,
+            player_of_match
         ) = match_engine.play_match()
 
     # CPU match
@@ -2311,6 +2684,11 @@ def play_knockout_match(
         print(
             f"Player of the Match: "
             f"{player_of_match.player_name}"
+        )
+
+        print(
+            f"Rating: "
+            f"{match_engine.player_match_ratings.get(player_of_match.player_id, 0):.1f}"
         )
 
     # Normal winner
@@ -2580,6 +2958,7 @@ sorted_scorers = sorted(
     key=lambda player: (
         player.goals,
         player.assists,
+        player.average_rating,
         player.player_of_match,
         player.rating
     ),
@@ -2636,6 +3015,7 @@ sorted_potm = sorted(
     player_objects,
     key=lambda player: (
         player.player_of_match,
+        player.average_rating,
         player.goals,
         player.rating
     ),
@@ -2696,6 +3076,7 @@ sorted_assists = sorted(
     key=lambda player: (
         player.assists,
         player.goals,
+        player.average_rating,
         player.rating
     ),
     reverse=True
@@ -2740,6 +3121,51 @@ else:
 
     print(
         "No assists recorded."
+    )
+
+
+# =========================
+# Best Player Ratings
+# =========================
+
+players_with_ratings = [
+    player
+    for player in player_objects
+    if player.matches > 0
+]
+
+players_with_ratings.sort(
+    key=lambda player: (
+        player.average_rating,
+        player.goals,
+        player.assists,
+        player.player_of_match
+    ),
+    reverse=True
+)
+
+print()
+print("BEST PLAYER RATINGS")
+print("-" * 70)
+
+print(
+    f"{'Player':<30}"
+    f"{'Matches':<10}"
+    f"{'Avg Rating':<12}"
+    f"{'Goals':<10}"
+    f"{'Assists':<10}"
+)
+
+print("-" * 70)
+
+for player in players_with_ratings[:10]:
+
+    print(
+        f"{player.player_name:<30}"
+        f"{player.matches:<10}"
+        f"{player.average_rating:<12.1f}"
+        f"{player.goals:<10}"
+        f"{player.assists:<10}"
     )
 
 
@@ -2822,6 +3248,7 @@ user_players = sorted(
     key=lambda player: (
         player.goals,
         player.assists,
+        player.average_rating,
         player.player_of_match,
         player.rating
     ),
@@ -2843,9 +3270,10 @@ print(
     f"{'Goals':<10}"
     f"{'Assists':<10}"
     f"{'POTM':<10}"
+    f"{'Avg Rating':<12}"
 )
 
-print("-" * 70)
+print("-" * 82)
 
 for player in user_players:
 
@@ -2855,6 +3283,7 @@ for player in user_players:
         f"{player.goals:<10}"
         f"{player.assists:<10}"
         f"{player.player_of_match:<10}"
+        f"{player.average_rating:<12.1f}"
     )
 
 
