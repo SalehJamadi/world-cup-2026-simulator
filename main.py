@@ -3,66 +3,35 @@ import random
 import time
 
 
-# ==================================================
-# LOAD TEAMS
-# ==================================================
+# =========================
+# Load CSV data
+# =========================
 
 teams = []
-
-with open("world_cup_2026_teams.csv", "r", encoding="utf-8") as file:
-
-    reader = csv.DictReader(file)
-
-    for row in reader:
-
-        teams.append(
-            {
-                "team_id": int(row["team_id"]),
-                "team_name": row["team_name"],
-                "country_code": row["country_code"],
-                "group_name": row["group_name"]
-            }
-        )
-
-
-# ==================================================
-# LOAD PLAYERS
-# ==================================================
-
 players = []
 
-with open("world_cup_2026_players.csv", "r", encoding="utf-8") as file:
-
+with open("world_cup_2026_teams.csv", "r", encoding="utf-8") as file:
     reader = csv.DictReader(file)
 
     for row in reader:
-
-        players.append(
-            {
-                "player_id": int(row["player_id"]),
-                "team_id": int(row["team_id"]),
-                "player_name": row["player_name"],
-                "position_group": row["position_group"],
-                "rating": int(row["rating"])
-            }
-        )
+        teams.append(row)
 
 
-# ==================================================
-# TEAM CLASS
-# ==================================================
+with open("world_cup_2026_players.csv", "r", encoding="utf-8") as file:
+    reader = csv.DictReader(file)
+
+    for row in reader:
+        players.append(row)
+
+
+# =========================
+# Team class
+# =========================
 
 class Team:
 
-    def __init__(
-        self,
-        team_id,
-        team_name,
-        country_code,
-        group_name
-    ):
-
-        self.team_id = team_id
+    def __init__(self, team_id, team_name, country_code, group_name):
+        self.team_id = int(team_id)
         self.team_name = team_name
         self.country_code = country_code
         self.group_name = group_name
@@ -70,38 +39,38 @@ class Team:
         self.players = []
 
         self.strength = 0
+        self.attack_strength = 0
+        self.midfield_strength = 0
+        self.defense_strength = 0
 
 
-# ==================================================
-# PLAYER CLASS
-# ==================================================
+# =========================
+# Player class
+# =========================
 
 class Player:
 
-    def __init__(
-        self,
-        player_id,
-        team_id,
-        player_name,
-        position_group,
-        rating
-    ):
-
-        self.player_id = player_id
-        self.team_id = team_id
+    def __init__(self, player_id, team_id, player_name, position_group, rating):
+        self.player_id = int(player_id)
+        self.team_id = int(team_id)
         self.player_name = player_name
         self.position_group = position_group
-        self.rating = rating
+        self.rating = int(rating)
+
+        # Tournament statistics
+        self.matches = 0
+        self.goals = 0
+        self.player_of_match = 0
+        self.yellow_cards = 0
 
 
-# ==================================================
-# CREATE TEAM OBJECTS
-# ==================================================
+# =========================
+# Create team objects
+# =========================
 
 team_objects = []
 
 for team_data in teams:
-
     team = Team(
         team_data["team_id"],
         team_data["team_name"],
@@ -112,14 +81,13 @@ for team_data in teams:
     team_objects.append(team)
 
 
-# ==================================================
-# CREATE PLAYER OBJECTS
-# ==================================================
+# =========================
+# Create player objects
+# =========================
 
 player_objects = []
 
 for player_data in players:
-
     player = Player(
         player_data["player_id"],
         player_data["team_id"],
@@ -131,229 +99,355 @@ for player_data in players:
     player_objects.append(player)
 
 
-# ==================================================
-# CONNECT PLAYERS TO THEIR TEAMS
-# ==================================================
-
-for player in player_objects:
-
-    for team in team_objects:
-
-        if player.team_id == team.team_id:
-
-            team.players.append(player)
-
-            break
-
-
-# ==================================================
-# CALCULATE TEAM STRENGTH
-# ==================================================
+# =========================
+# Connect players to teams
+# =========================
 
 for team in team_objects:
 
-    total_rating = 0
+    for player in player_objects:
 
-    for player in team.players:
+        if player.team_id == team.team_id:
+            team.players.append(player)
 
-        total_rating += player.rating
 
-    if len(team.players) > 0:
+# =========================
+# Calculate team strengths
+# =========================
 
-        team.strength = round(
-            total_rating / len(team.players)
+for team in team_objects:
+
+    if not team.players:
+        continue
+
+    total_rating = sum(player.rating for player in team.players)
+
+    team.strength = round(total_rating / len(team.players))
+
+    defenders = [
+        player.rating
+        for player in team.players
+        if player.position_group == "DEF"
+    ]
+
+    midfielders = [
+        player.rating
+        for player in team.players
+        if player.position_group == "MID"
+    ]
+
+    attackers = [
+        player.rating
+        for player in team.players
+        if player.position_group == "ATT"
+    ]
+
+    if defenders:
+        team.defense_strength = round(
+            sum(defenders) / len(defenders)
+        )
+
+    if midfielders:
+        team.midfield_strength = round(
+            sum(midfielders) / len(midfielders)
+        )
+
+    if attackers:
+        team.attack_strength = round(
+            sum(attackers) / len(attackers)
         )
 
 
-# ==================================================
-# MATCH ENGINE
-# ==================================================
+# =========================
+# Match Engine
+# =========================
 
 class MatchEngine:
 
     def __init__(self, home_team, away_team):
-
         self.home_team = home_team
         self.away_team = away_team
 
         self.home_score = 0
         self.away_score = 0
 
+        self.home_tactic = "Control"
+        self.away_tactic = "Control"
 
-    # ==================================================
-    # CHOOSE GOAL SCORER
-    # ==================================================
+        self.home_goal_scorers = []
+        self.away_goal_scorers = []
 
-    def choose_goal_scorer(self, team):
+        self.home_stats = {
+            "possession": 50,
+            "shots": 0,
+            "shots_on_target": 0,
+            "corners": 0,
+            "fouls": 0,
+            "yellow_cards": 0
+        }
 
-        attackers = []
-        midfielders = []
-        defenders = []
+        self.away_stats = {
+            "possession": 50,
+            "shots": 0,
+            "shots_on_target": 0,
+            "corners": 0,
+            "fouls": 0,
+            "yellow_cards": 0
+        }
 
-        for player in team.players:
+        self.match_events = []
 
-            if player.position_group == "ATT":
+        self.played_players = []
 
-                attackers.append(player)
+    # =========================
+    # Tactic settings
+    # =========================
 
-            elif player.position_group == "MID":
+    def get_tactic_modifiers(self, tactic):
 
-                midfielders.append(player)
+        if tactic == "Attacking":
+            return {
+                "attack": 8,
+                "defense": -5,
+                "possession": -2,
+                "shots": 5
+            }
 
-            elif player.position_group == "DEF":
+        if tactic == "Defensive":
+            return {
+                "attack": -5,
+                "defense": 8,
+                "possession": 2,
+                "shots": -2
+            }
 
-                defenders.append(player)
+        return {
+            "attack": 2,
+            "defense": 2,
+            "possession": 4,
+            "shots": 1
+        }
 
+    # =========================
+    # Automatic CPU tactic
+    # =========================
 
-        position_choice = random.random()
+    def choose_cpu_tactic(self, team, opponent):
 
+        difference = team.strength - opponent.strength
 
-        if position_choice < 0.70 and attackers:
+        if difference >= 8:
+            return random.choices(
+                ["Attacking", "Control", "Defensive"],
+                weights=[60, 35, 5]
+            )[0]
 
-            selected_group = attackers
+        if difference <= -8:
+            return random.choices(
+                ["Attacking", "Control", "Defensive"],
+                weights=[10, 40, 50]
+            )[0]
 
-        elif position_choice < 0.90 and midfielders:
+        return random.choices(
+            ["Attacking", "Control", "Defensive"],
+            weights=[25, 55, 20]
+        )[0]
 
-            selected_group = midfielders
+    # =========================
+    # User tactic selection
+    # =========================
 
-        elif defenders:
+    def choose_user_tactic(self):
 
-            selected_group = defenders
+        opponent = self.away_team
 
-        elif attackers:
-
-            selected_group = attackers
-
-        elif midfielders:
-
-            selected_group = midfielders
-
+        if self.home_team == user_team:
+            opponent = self.away_team
         else:
+            opponent = self.home_team
 
-            selected_group = team.players
+        print()
+        print("=" * 50)
+        print("TACTICAL DECISION")
+        print("=" * 50)
 
+        print(f"Your team: {user_team.team_name}")
+        print(f"Your strength: {user_team.strength}")
 
-        return random.choice(selected_group)
+        print(f"Opponent: {opponent.team_name}")
+        print(f"Opponent strength: {opponent.strength}")
 
+        difference = user_team.strength - opponent.strength
 
-    # ==================================================
-    # CALCULATE GOAL CHANCE
-    # ==================================================
+        if difference >= 8:
+            print("Opponent level: WEAKER")
+        elif difference <= -8:
+            print("Opponent level: STRONGER")
+        else:
+            print("Opponent level: SIMILAR")
 
-    def calculate_goal_chance(
-        self,
-        attacking_team,
-        defending_team,
-        attacking_modifier,
-        defending_modifier
-    ):
+        print()
+        print("1. Attacking")
+        print("2. Control")
+        print("3. Defensive")
 
-        attack_power = (
-            attacking_team.strength
-            + attacking_modifier
-        )
+        while True:
 
-        defense_power = (
-            defending_team.strength
-            + defending_modifier
-        )
+            choice = input("Choose your tactic: ")
 
+            if choice == "1":
+                return "Attacking"
 
-        difference = attack_power - defense_power
+            if choice == "2":
+                return "Control"
 
+            if choice == "3":
+                return "Defensive"
 
-        base_chance = 0.035
+            print("Invalid choice. Please try again.")
 
-
-        chance = (
-            base_chance
-            + difference * 0.001
-        )
-
-
-        if chance < 0.01:
-
-            chance = 0.01
-
-
-        if chance > 0.08:
-
-            chance = 0.08
-
-
-        return chance
-
-
-    # ==================================================
-    # PREPARE MATCH
-    # ==================================================
+    # =========================
+    # Prepare match
+    # =========================
 
     def prepare_match(self):
 
-        tactics = {
-
-            "Attacking": {
-                "attack": 8,
-                "defense": -5
-            },
-
-            "Control": {
-                "attack": 2,
-                "defense": 2
-            },
-
-            "Defensive": {
-                "attack": -5,
-                "defense": 8
-            }
-
-        }
-
-
-        home_tactic = getattr(
-            self.home_team,
-            "tactic",
-            "Control"
+        home_modifiers = self.get_tactic_modifiers(
+            self.home_tactic
         )
 
-        away_tactic = getattr(
-            self.away_team,
-            "tactic",
-            "Control"
+        away_modifiers = self.get_tactic_modifiers(
+            self.away_tactic
         )
 
-
-        home_attack_modifier = tactics[home_tactic]["attack"]
-
-        home_defense_modifier = tactics[home_tactic]["defense"]
-
-        away_attack_modifier = tactics[away_tactic]["attack"]
-
-        away_defense_modifier = tactics[away_tactic]["defense"]
-
-
-        home_goal_chance = self.calculate_goal_chance(
-            self.home_team,
-            self.away_team,
-            home_attack_modifier,
-            away_defense_modifier
+        home_attack = (
+            self.home_team.attack_strength
+            + home_modifiers["attack"]
         )
 
-
-        away_goal_chance = self.calculate_goal_chance(
-            self.away_team,
-            self.home_team,
-            away_attack_modifier,
-            home_defense_modifier
+        away_attack = (
+            self.away_team.attack_strength
+            + away_modifiers["attack"]
         )
 
+        home_defense = (
+            self.home_team.defense_strength
+            + home_modifiers["defense"]
+        )
+
+        away_defense = (
+            self.away_team.defense_strength
+            + away_modifiers["defense"]
+        )
+
+        home_midfield = (
+            self.home_team.midfield_strength
+        )
+
+        away_midfield = (
+            self.away_team.midfield_strength
+        )
+
+        home_attack_power = (
+            home_attack * 0.55
+            + home_midfield * 0.25
+            + self.home_team.strength * 0.20
+        )
+
+        away_attack_power = (
+            away_attack * 0.55
+            + away_midfield * 0.25
+            + self.away_team.strength * 0.20
+        )
+
+        home_goal_chance = (
+            0.018
+            + (home_attack_power - away_defense) * 0.0012
+        )
+
+        away_goal_chance = (
+            0.018
+            + (away_attack_power - home_defense) * 0.0012
+        )
+
+        home_goal_chance = max(
+            0.006,
+            min(0.075, home_goal_chance)
+        )
+
+        away_goal_chance = max(
+            0.006,
+            min(0.075, away_goal_chance)
+        )
+
+        # Possession
+        home_possession = (
+            50
+            + (home_midfield - away_midfield) * 0.7
+            + home_modifiers["possession"]
+            - away_modifiers["possession"]
+        )
+
+        home_possession = max(
+            30,
+            min(70, home_possession)
+        )
+
+        away_possession = 100 - home_possession
+
+        self.home_stats["possession"] = round(
+            home_possession
+        )
+
+        self.away_stats["possession"] = round(
+            away_possession
+        )
 
         return home_goal_chance, away_goal_chance
 
+    # =========================
+    # Choose goal scorer
+    # =========================
 
-    # ==================================================
-    # SIMULATE ONE MINUTE
-    # ==================================================
+    def choose_goal_scorer(self, team):
+
+        attackers = [
+            player
+            for player in team.players
+            if player.position_group == "ATT"
+        ]
+
+        midfielders = [
+            player
+            for player in team.players
+            if player.position_group == "MID"
+        ]
+
+        defenders = [
+            player
+            for player in team.players
+            if player.position_group == "DEF"
+        ]
+
+        position = random.choices(
+            ["ATT", "MID", "DEF"],
+            weights=[70, 20, 10]
+        )[0]
+
+        if position == "ATT" and attackers:
+            return random.choice(attackers)
+
+        if position == "MID" and midfielders:
+            return random.choice(midfielders)
+
+        if defenders:
+            return random.choice(defenders)
+
+        return random.choice(team.players)
+
+    # =========================
+    # Simulate match minute
+    # =========================
 
     def simulate_minute(
         self,
@@ -363,69 +457,289 @@ class MatchEngine:
         show_events=True
     ):
 
-        # Home team goal attempt
+        # Shots
+        if random.random() < 0.14:
+            self.home_stats["shots"] += 1
 
+            if random.random() < 0.38:
+                self.home_stats["shots_on_target"] += 1
+
+        if random.random() < 0.13:
+            self.away_stats["shots"] += 1
+
+            if random.random() < 0.37:
+                self.away_stats["shots_on_target"] += 1
+
+        # Corners
+        if random.random() < 0.035:
+            self.home_stats["corners"] += 1
+
+        if random.random() < 0.033:
+            self.away_stats["corners"] += 1
+
+        # Fouls
+        if random.random() < 0.08:
+            self.home_stats["fouls"] += 1
+
+        if random.random() < 0.08:
+            self.away_stats["fouls"] += 1
+
+        # Yellow cards
+        if random.random() < 0.012:
+            self.home_stats["yellow_cards"] += 1
+
+            if self.home_team.players:
+                yellow_player = random.choice(
+                    self.home_team.players
+                )
+
+                yellow_player.yellow_cards += 1
+
+                self.match_events.append(
+                    f"{minute:02d}' Yellow card - "
+                    f"{yellow_player.player_name} "
+                    f"({self.home_team.team_name})"
+                )
+
+                if show_events:
+                    print()
+                    print(
+                        f"{minute:02d}' Yellow card - "
+                        f"{yellow_player.player_name}"
+                    )
+
+        if random.random() < 0.012:
+            self.away_stats["yellow_cards"] += 1
+
+            if self.away_team.players:
+                yellow_player = random.choice(
+                    self.away_team.players
+                )
+
+                yellow_player.yellow_cards += 1
+
+                self.match_events.append(
+                    f"{minute:02d}' Yellow card - "
+                    f"{yellow_player.player_name} "
+                    f"({self.away_team.team_name})"
+                )
+
+                if show_events:
+                    print()
+                    print(
+                        f"{minute:02d}' Yellow card - "
+                        f"{yellow_player.player_name}"
+                    )
+
+        # Home goal
         if random.random() < home_goal_chance:
 
             if self.home_score < 5:
+
+                self.home_score += 1
 
                 scorer = self.choose_goal_scorer(
                     self.home_team
                 )
 
-                self.home_score += 1
+                scorer.goals += 1
 
+                self.home_goal_scorers.append(
+                    scorer
+                )
+
+                event = (
+                    f"{minute:02d}' GOAL! "
+                    f"{self.home_team.team_name} - "
+                    f"{scorer.player_name}"
+                )
+
+                self.match_events.append(event)
 
                 if show_events:
-
                     print()
+                    print(event)
 
-                    print(
-                        f"GOAL! {self.home_team.team_name}"
-                    )
-
-                    print(
-                        f"Scorer: {scorer.player_name}"
-                    )
-
-                    print(
-                        f"Minute: {minute}'"
-                    )
-
-
-        # Away team goal attempt
-
+        # Away goal
         elif random.random() < away_goal_chance:
 
             if self.away_score < 5:
+
+                self.away_score += 1
 
                 scorer = self.choose_goal_scorer(
                     self.away_team
                 )
 
-                self.away_score += 1
+                scorer.goals += 1
 
+                self.away_goal_scorers.append(
+                    scorer
+                )
+
+                event = (
+                    f"{minute:02d}' GOAL! "
+                    f"{self.away_team.team_name} - "
+                    f"{scorer.player_name}"
+                )
+
+                self.match_events.append(event)
 
                 if show_events:
-
                     print()
+                    print(event)
 
-                    print(
-                        f"GOAL! {self.away_team.team_name}"
-                    )
+    # =========================
+    # Update player appearances
+    # =========================
 
-                    print(
-                        f"Scorer: {scorer.player_name}"
-                    )
+    def update_player_appearances(self):
 
-                    print(
-                        f"Minute: {minute}'"
-                    )
+        for player in self.home_team.players:
+            player.matches += 1
 
+        for player in self.away_team.players:
+            player.matches += 1
 
-    # ==================================================
-    # PLAY MATCH
-    # ==================================================
+    # =========================
+    # Calculate Player of Match
+    # =========================
+
+    def calculate_player_of_match(self):
+
+        all_players = (
+            self.home_team.players
+            + self.away_team.players
+        )
+
+        best_player = None
+        best_score = -999
+
+        for player in all_players:
+
+            score = player.rating * 0.10
+
+            player_goals = 0
+
+            if player in self.home_goal_scorers:
+                player_goals = self.home_goal_scorers.count(
+                    player
+                )
+
+            if player in self.away_goal_scorers:
+                player_goals = self.away_goal_scorers.count(
+                    player
+                )
+
+            score += player_goals * 4
+
+            if player_goals > 0:
+                score += 2
+
+            if (
+                self.home_score > self.away_score
+                and player.team_id == self.home_team.team_id
+            ):
+                score += 2
+
+            if (
+                self.away_score > self.home_score
+                and player.team_id == self.away_team.team_id
+            ):
+                score += 2
+
+            score += random.uniform(0, 2)
+
+            if score > best_score:
+                best_score = score
+                best_player = player
+
+        if best_player:
+
+            best_player.player_of_match += 1
+
+        return best_player
+
+    # =========================
+    # Display match statistics
+    # =========================
+
+    def show_match_statistics(self, player_of_match):
+
+        print()
+        print("=" * 60)
+        print("MATCH STATISTICS")
+        print("=" * 60)
+
+        print(
+            f"{'Statistic':<20}"
+            f"{self.home_team.team_name:<20}"
+            f"{self.away_team.team_name:<20}"
+        )
+
+        print(
+            f"{'Possession':<20}"
+            f"{str(self.home_stats['possession']) + '%':<20}"
+            f"{str(self.away_stats['possession']) + '%':<20}"
+        )
+
+        print(
+            f"{'Shots':<20}"
+            f"{self.home_stats['shots']:<20}"
+            f"{self.away_stats['shots']:<20}"
+        )
+
+        print(
+            f"{'Shots on Target':<20}"
+            f"{self.home_stats['shots_on_target']:<20}"
+            f"{self.away_stats['shots_on_target']:<20}"
+        )
+
+        print(
+            f"{'Corners':<20}"
+            f"{self.home_stats['corners']:<20}"
+            f"{self.away_stats['corners']:<20}"
+        )
+
+        print(
+            f"{'Fouls':<20}"
+            f"{self.home_stats['fouls']:<20}"
+            f"{self.away_stats['fouls']:<20}"
+        )
+
+        print(
+            f"{'Yellow Cards':<20}"
+            f"{self.home_stats['yellow_cards']:<20}"
+            f"{self.away_stats['yellow_cards']:<20}"
+        )
+
+        print()
+
+        if self.home_goal_scorers:
+            print("Home goal scorers:")
+
+            for player in self.home_goal_scorers:
+                print(f"- {player.player_name}")
+
+        if self.away_goal_scorers:
+            print("Away goal scorers:")
+
+            for player in self.away_goal_scorers:
+                print(f"- {player.player_name}")
+
+        print()
+
+        if player_of_match:
+            print(
+                f"PLAYER OF THE MATCH: "
+                f"{player_of_match.player_name}"
+            )
+
+        print("=" * 60)
+
+    # =========================
+    # Play user's match
+    # =========================
 
     def play_match(self):
 
@@ -433,43 +747,47 @@ class MatchEngine:
             self.prepare_match()
         )
 
+        self.update_player_appearances()
 
         print()
-
         print(
             f"{self.home_team.team_name} "
             f"vs "
             f"{self.away_team.team_name}"
         )
 
-        print()
+        print(
+            f"Tactics: "
+            f"{self.home_team.team_name} = "
+            f"{self.home_tactic}"
+        )
 
+        print(
+            f"Tactics: "
+            f"{self.away_team.team_name} = "
+            f"{self.away_tactic}"
+        )
+
+        print()
 
         for minute in range(0, 91):
 
             progress_length = 30
 
-
             progress = int(
-                (minute / 90)
-                * progress_length
+                (minute / 90) * progress_length
             )
-
 
             bar = (
                 "█" * progress
-                + "-" * (
-                    progress_length - progress
-                )
+                + "-" * (progress_length - progress)
             )
-
 
             print(
                 f"\r{minute:02d}' [{bar}]",
                 end="",
                 flush=True
             )
-
 
             self.simulate_minute(
                 minute,
@@ -478,12 +796,9 @@ class MatchEngine:
                 show_events=True
             )
 
-
             time.sleep(0.2)
 
-
         print()
-
         print()
 
         print(
@@ -494,22 +809,37 @@ class MatchEngine:
             f"{self.away_team.team_name}"
         )
 
-        print()
+        player_of_match = (
+            self.calculate_player_of_match()
+        )
 
+        self.show_match_statistics(
+            player_of_match
+        )
 
         return self.home_score, self.away_score
 
-
-    # ==================================================
-    # QUICK MATCH
-    # ==================================================
+    # =========================
+    # Quick CPU match
+    # =========================
 
     def quick_match(self):
+
+        self.home_tactic = self.choose_cpu_tactic(
+            self.home_team,
+            self.away_team
+        )
+
+        self.away_tactic = self.choose_cpu_tactic(
+            self.away_team,
+            self.home_team
+        )
 
         home_goal_chance, away_goal_chance = (
             self.prepare_match()
         )
 
+        self.update_player_appearances()
 
         for minute in range(0, 91):
 
@@ -520,96 +850,83 @@ class MatchEngine:
                 show_events=False
             )
 
+        player_of_match = (
+            self.calculate_player_of_match()
+        )
 
-        return self.home_score, self.away_score
+        return (
+            self.home_score,
+            self.away_score,
+            player_of_match
+        )
 
 
-# ==================================================
-# CREATE GROUPS
-# ==================================================
+# =========================
+# Groups
+# =========================
 
 groups = {}
-
 
 for team in team_objects:
 
     if team.group_name not in groups:
-
         groups[team.group_name] = []
-
 
     groups[team.group_name].append(team)
 
 
-# ==================================================
-# CREATE GROUP MATCHES
-# ==================================================
+# =========================
+# Create group matches
+# =========================
 
-group_matches = []
+group_matches = {}
 
+for group_name, group_teams in groups.items():
 
-for group_name in groups:
-
-    group_teams = groups[group_name]
-
+    matches = []
 
     for i in range(len(group_teams)):
 
         for j in range(i + 1, len(group_teams)):
 
-            home_team = group_teams[i]
-
-            away_team = group_teams[j]
-
-
-            group_matches.append(
+            matches.append(
                 (
-                    group_name,
-                    home_team,
-                    away_team
+                    group_teams[i],
+                    group_teams[j]
                 )
             )
 
+    group_matches[group_name] = matches
 
-# ==================================================
-# CREATE GROUP TABLES
-# ==================================================
+
+# =========================
+# Group tables
+# =========================
 
 group_tables = {}
 
-
-for group_name in groups:
+for group_name, group_teams in groups.items():
 
     group_tables[group_name] = {}
 
-
-    for team in groups[group_name]:
+    for team in group_teams:
 
         group_tables[group_name][team.team_id] = {
-
             "team": team,
-
             "played": 0,
-
             "wins": 0,
-
             "draws": 0,
-
             "losses": 0,
-
             "goals_for": 0,
-
             "goals_against": 0,
-
             "goal_difference": 0,
-
             "points": 0
         }
 
 
-# ==================================================
-# UPDATE GROUP TABLE
-# ==================================================
+# =========================
+# Update group table
+# =========================
 
 def update_group_table(
     group_name,
@@ -619,79 +936,59 @@ def update_group_table(
     away_score
 ):
 
-    home_data = group_tables[
-        group_name
-    ][
+    home_data = group_tables[group_name][
         home_team.team_id
     ]
 
-
-    away_data = group_tables[
-        group_name
-    ][
+    away_data = group_tables[group_name][
         away_team.team_id
     ]
 
-
     home_data["played"] += 1
-
     away_data["played"] += 1
 
-
     home_data["goals_for"] += home_score
-
     home_data["goals_against"] += away_score
 
-
     away_data["goals_for"] += away_score
-
     away_data["goals_against"] += home_score
-
 
     home_data["goal_difference"] = (
         home_data["goals_for"]
         - home_data["goals_against"]
     )
 
-
     away_data["goal_difference"] = (
         away_data["goals_for"]
         - away_data["goals_against"]
     )
 
-
     if home_score > away_score:
 
         home_data["wins"] += 1
-
-        away_data["losses"] += 1
-
         home_data["points"] += 3
 
+        away_data["losses"] += 1
 
     elif away_score > home_score:
 
         away_data["wins"] += 1
-
-        home_data["losses"] += 1
-
         away_data["points"] += 3
 
+        home_data["losses"] += 1
 
     else:
 
         home_data["draws"] += 1
-
         away_data["draws"] += 1
 
         home_data["points"] += 1
-
         away_data["points"] += 1
 
 
-# ==================================================
-# SORT GROUP TABLE
-# ==================================================
+# =========================
+# Sort group table
+# =========================
 
 def sort_group_table(group_name):
 
@@ -699,413 +996,239 @@ def sort_group_table(group_name):
         group_tables[group_name].values()
     )
 
-
     table.sort(
-
         key=lambda team_data: (
-
             team_data["points"],
-
             team_data["goal_difference"],
-
             team_data["goals_for"]
-
         ),
-
         reverse=True
     )
-
 
     return table
 
 
-# ==================================================
-# SHOW GROUP TABLE
-# ==================================================
+# =========================
+# Show group table
+# =========================
 
 def show_group_table(group_name):
 
-    table = sort_group_table(
-        group_name
-    )
-
+    table = sort_group_table(group_name)
 
     print()
+    print("=" * 75)
+    print(f"GROUP {group_name}")
+    print("=" * 75)
 
     print(
-        "========================================"
+        f"{'Team':<25}"
+        f"{'P':<5}"
+        f"{'W':<5}"
+        f"{'D':<5}"
+        f"{'L':<5}"
+        f"{'GF':<5}"
+        f"{'GA':<5}"
+        f"{'GD':<5}"
+        f"{'PTS':<5}"
     )
 
-    print(
-        f"GROUP {group_name}"
-    )
-
-    print(
-        "========================================"
-    )
-
-
-    print(
-        f"{'Team':25}"
-        f"{'P':>3}"
-        f"{'W':>3}"
-        f"{'D':>3}"
-        f"{'L':>3}"
-        f"{'GF':>4}"
-        f"{'GA':>4}"
-        f"{'GD':>4}"
-        f"{'PTS':>5}"
-    )
-
-
-    print(
-        "----------------------------------------"
-    )
-
+    print("-" * 75)
 
     for team_data in table:
 
         team = team_data["team"]
 
-
         print(
-
-            f"{team.team_name:25}"
-
-            f"{team_data['played']:>3}"
-
-            f"{team_data['wins']:>3}"
-
-            f"{team_data['draws']:>3}"
-
-            f"{team_data['losses']:>3}"
-
-            f"{team_data['goals_for']:>4}"
-
-            f"{team_data['goals_against']:>4}"
-
-            f"{team_data['goal_difference']:>4}"
-
-            f"{team_data['points']:>5}"
-
+            f"{team.team_name:<25}"
+            f"{team_data['played']:<5}"
+            f"{team_data['wins']:<5}"
+            f"{team_data['draws']:<5}"
+            f"{team_data['losses']:<5}"
+            f"{team_data['goals_for']:<5}"
+            f"{team_data['goals_against']:<5}"
+            f"{team_data['goal_difference']:<5}"
+            f"{team_data['points']:<5}"
         )
 
+    print("=" * 75)
 
-    print()
 
-
-# ==================================================
-# SELECT USER TEAM
-# ==================================================
-
-print()
-
-print(
-    "========================================"
-)
-
-print(
-    "WORLD CUP 2026 SIMULATOR"
-)
-
-print(
-    "========================================"
-)
+# =========================
+# Choose user's team
+# =========================
 
 print()
-
-
-print("Available teams:")
+print("=" * 50)
+print("WORLD CUP 2026 SIMULATOR")
+print("=" * 50)
 
 print()
-
 
 for team in team_objects:
 
     print(
-        team.team_id,
-        "-",
-        team.team_name,
-        "| Group:",
-        team.group_name,
-        "| Strength:",
-        team.strength
+        f"{team.team_id:02d}. "
+        f"{team.team_name} "
+        f"(Group {team.group_name}) "
+        f"[Strength: {team.strength}]"
     )
 
-
 print()
 
+while True:
 
-user_team_id = int(
-    input("Enter your team ID: ")
-)
+    try:
+        selected_team_id = int(
+            input("Choose your team ID: ")
+        )
 
+        selected_team = next(
+            (
+                team
+                for team in team_objects
+                if team.team_id == selected_team_id
+            ),
+            None
+        )
 
-user_team = None
+        if selected_team:
+            user_team = selected_team
+            break
 
+        print("Invalid team ID.")
 
-for team in team_objects:
-
-    if team.team_id == user_team_id:
-
-        user_team = team
-
-        break
-
-
-if user_team is None:
-
-    print("Invalid team ID.")
-
-    exit()
-
-
-# ==================================================
-# SELECT TACTIC
-# ==================================================
-
-print()
-
-print(
-    "Choose your tactic:"
-)
-
-print(
-    "1 - Attacking"
-)
-
-print(
-    "2 - Control"
-)
-
-print(
-    "3 - Defensive"
-)
-
-
-tactic_choice = input(
-    "Enter choice: "
-)
-
-
-if tactic_choice == "1":
-
-    user_tactic = "Attacking"
-
-
-elif tactic_choice == "2":
-
-    user_tactic = "Control"
-
-
-elif tactic_choice == "3":
-
-    user_tactic = "Defensive"
-
-
-else:
-
-    user_tactic = "Control"
-
-
-user_team.tactic = user_tactic
+    except ValueError:
+        print("Please enter a valid number.")
 
 
 print()
-
 print(
     f"You selected: "
     f"{user_team.team_name}"
 )
 
 print(
-    f"Tactic: {user_team.tactic}"
-)
-
-print(
-    f"Team Strength: {user_team.strength}"
+    f"Your team strength: "
+    f"{user_team.strength}"
 )
 
 
-# ==================================================
-# SET DEFAULT TACTIC FOR CPU TEAMS
-# ==================================================
-
-for team in team_objects:
-
-    if team != user_team:
-
-        team.tactic = random.choice(
-            [
-                "Attacking",
-                "Control",
-                "Defensive"
-            ]
-        )
-
-
-# ==================================================
-# GROUP STAGE
-# ==================================================
+# =========================
+# Group Stage
+# =========================
 
 print()
+print("=" * 50)
+print("GROUP STAGE")
+print("=" * 50)
 
-print(
-    "========================================"
-)
+for group_name in sorted(group_matches.keys()):
 
-print(
-    "GROUP STAGE START"
-)
-
-print(
-    "========================================"
-)
-
-print()
-
-
-current_group = None
-
-
-for match in group_matches:
-
-    group_name = match[0]
-
-    home_team = match[1]
-
-    away_team = match[2]
-
-
-    if group_name != current_group:
-
-        current_group = group_name
-
-        print()
-
-        print(
-            "########################################"
-        )
-
-        print(
-            f"GROUP {group_name}"
-        )
-
-        print(
-            "########################################"
-        )
-
-        print()
-
-
-    # User match
-
-    if (
-        home_team == user_team
-        or away_team == user_team
-    ):
-
-        match_engine = MatchEngine(
-            home_team,
-            away_team
-        )
-
-
-        home_score, away_score = (
-            match_engine.play_match()
-        )
-
-
-    # CPU match
-
-    else:
-
-        match_engine = MatchEngine(
-            home_team,
-            away_team
-        )
-
-
-        home_score, away_score = (
-            match_engine.quick_match()
-        )
-
-
-        print(
-            f"{home_team.team_name} "
-            f"{home_score} - "
-            f"{away_score} "
-            f"{away_team.team_name}"
-        )
-
-
-    update_group_table(
-        group_name,
-        home_team,
-        away_team,
-        home_score,
-        away_score
+    print()
+    print(
+        f"Starting Group {group_name}"
     )
 
+    for home_team, away_team in group_matches[group_name]:
 
-    group_match_list = [
-        m for m in group_matches
-        if m[0] == group_name
-    ]
-
-
-    if match == group_match_list[-1]:
-
-        show_group_table(
-            group_name
+        match_engine = MatchEngine(
+            home_team,
+            away_team
         )
 
+        # User match
+        if (
+            home_team == user_team
+            or away_team == user_team
+        ):
 
-# ==================================================
-# GROUP STAGE COMPLETE
-# ==================================================
+            if home_team == user_team:
+                match_engine.home_tactic = (
+                    match_engine.choose_user_tactic()
+                )
+
+                match_engine.away_tactic = (
+                    match_engine.choose_cpu_tactic(
+                        away_team,
+                        home_team
+                    )
+                )
+
+            else:
+
+                match_engine.away_tactic = (
+                    match_engine.choose_user_tactic()
+                )
+
+                match_engine.home_tactic = (
+                    match_engine.choose_cpu_tactic(
+                        home_team,
+                        away_team
+                    )
+                )
+
+            home_score, away_score = (
+                match_engine.play_match()
+            )
+
+        # CPU match
+        else:
+
+            (
+                home_score,
+                away_score,
+                player_of_match
+            ) = match_engine.quick_match()
+
+            print(
+                f"{home_team.team_name} "
+                f"{home_score} - "
+                f"{away_score} "
+                f"{away_team.team_name}"
+            )
+
+            print(
+                f"Player of the Match: "
+                f"{player_of_match.player_name}"
+            )
+
+        update_group_table(
+            group_name,
+            home_team,
+            away_team,
+            home_score,
+            away_score
+        )
+
+    show_group_table(group_name)
+
+
+# =========================
+# Group Stage Complete
+# =========================
 
 print()
-
-print(
-    "========================================"
-)
-
-print(
-    "GROUP STAGE COMPLETE"
-)
-
-print(
-    "========================================"
-)
+print("=" * 50)
+print("GROUP STAGE COMPLETE")
+print("=" * 50)
 
 print()
-
-
 print(
     f"Your team: {user_team.team_name}"
 )
-
-print(
-    f"Group: {user_team.group_name}"
-)
-
 
 show_group_table(
     user_team.group_name
 )
 
 
-# ==================================================
-# QUALIFIED TEAMS
-# ==================================================
+# =========================
+# Qualification
+# =========================
 
 qualified_teams = []
-
 third_place_teams = []
-
-
-# Get the top two teams from every group
 
 for group_name in group_tables:
 
@@ -1113,50 +1236,22 @@ for group_name in group_tables:
         group_name
     )
 
-
-    # First place
-
     first_place = table[0]["team"]
-
-    qualified_teams.append(
-        first_place
-    )
-
-
-    # Second place
+    qualified_teams.append(first_place)
 
     second_place = table[1]["team"]
-
-    qualified_teams.append(
-        second_place
-    )
-
-
-    # Third place
+    qualified_teams.append(second_place)
 
     third_place = table[2]
+    third_place_teams.append(third_place)
 
-    third_place_teams.append(
-        third_place
-    )
-
-
-# ==================================================
-# BEST THIRD-PLACED TEAMS
-# ==================================================
 
 third_place_teams.sort(
-
     key=lambda team_data: (
-
         team_data["points"],
-
         team_data["goal_difference"],
-
         team_data["goals_for"]
-
     ),
-
     reverse=True
 )
 
@@ -1166,8 +1261,6 @@ best_third_place_teams = (
 )
 
 
-# Add the eight best third-placed teams
-
 for team_data in best_third_place_teams:
 
     qualified_teams.append(
@@ -1175,123 +1268,43 @@ for team_data in best_third_place_teams:
     )
 
 
-# ==================================================
-# SHOW QUALIFIED TEAMS
-# ==================================================
-
 print()
+print("=" * 50)
+print("QUALIFIED TEAMS")
+print("=" * 50)
 
-print(
-    "########################################"
-)
-
-print(
-    "TEAMS QUALIFIED FOR ROUND OF 32"
-)
-
-print(
-    "########################################"
-)
-
-
-print()
-
-print(
-    "GROUP WINNERS + RUNNERS-UP"
-)
-
-print(
-    "----------------------------------------"
-)
-
-
-for team in qualified_teams[:24]:
+for index, team in enumerate(
+    qualified_teams,
+    start=1
+):
 
     print(
-        team.team_name,
-        "-",
-        "Group",
-        team.group_name
+        f"{index:02d}. "
+        f"{team.team_name}"
     )
 
 
 print()
-
 print(
-    "BEST THIRD-PLACED TEAMS"
-)
-
-print(
-    "----------------------------------------"
+    f"Total qualified teams: "
+    f"{len(qualified_teams)}"
 )
 
 
-for team_data in best_third_place_teams:
-
-    team = team_data["team"]
-
-
-    print(
-
-        team.team_name,
-
-        "-",
-
-        "Group",
-
-        team.group_name,
-
-        "| Points:",
-
-        team_data["points"],
-
-        "| GD:",
-
-        team_data["goal_difference"],
-
-        "| GF:",
-
-        team_data["goals_for"]
-
-    )
-
-
-print()
-
-print(
-    "========================================"
-)
-
-print(
-    "TOTAL QUALIFIED TEAMS:"
-)
-
-print(
-    len(qualified_teams)
-)
-
-print(
-    "========================================"
-)
-
-
-# ==================================================
-# KNOCKOUT STAGE
-# ==================================================
+# =========================
+# Knockout Stage
+# =========================
 
 knockout_teams = qualified_teams.copy()
-
-
-# Randomize the 32 qualified teams once
 
 random.shuffle(
     knockout_teams
 )
 
 
-# ==================================================
-# PLAY KNOCKOUT MATCH
-# ==================================================
+# =========================
+# Knockout match
+# =========================
 
 def play_knockout_match(
     home_team,
@@ -1303,27 +1316,50 @@ def play_knockout_match(
         away_team
     )
 
-
-    # User team match
-
+    # User chooses tactic before every
+    # knockout match
     if (
         home_team == user_team
         or away_team == user_team
     ):
 
+        if home_team == user_team:
+
+            match_engine.home_tactic = (
+                match_engine.choose_user_tactic()
+            )
+
+            match_engine.away_tactic = (
+                match_engine.choose_cpu_tactic(
+                    away_team,
+                    home_team
+                )
+            )
+
+        else:
+
+            match_engine.away_tactic = (
+                match_engine.choose_user_tactic()
+            )
+
+            match_engine.home_tactic = (
+                match_engine.choose_cpu_tactic(
+                    home_team,
+                    away_team
+                )
+            )
+
         home_score, away_score = (
             match_engine.play_match()
         )
 
-
-    # CPU match
-
     else:
 
-        home_score, away_score = (
-            match_engine.quick_match()
-        )
-
+        (
+            home_score,
+            away_score,
+            player_of_match
+        ) = match_engine.quick_match()
 
         print(
             f"{home_team.team_name} "
@@ -1332,195 +1368,68 @@ def play_knockout_match(
             f"{away_team.team_name}"
         )
 
+        print(
+            f"Player of the Match: "
+            f"{player_of_match.player_name}"
+        )
 
-    # Handle draw
-
+    # Knockout matches cannot end in a draw
     if home_score == away_score:
 
         print()
-
-        print(
-            "Match is tied."
-        )
-
-        print(
-            "Penalty shootout..."
-        )
-
+        print("Match is tied.")
+        print("Penalty shootout...")
 
         winner = random.choice(
-            [
-                home_team,
-                away_team
-            ]
+            [home_team, away_team]
         )
-
 
         print(
-            f"Winner: {winner.team_name}"
+            f"Winner: "
+            f"{winner.team_name}"
         )
-
 
         return winner
 
-
-    # Normal winner
-
     if home_score > away_score:
-
         return home_team
 
-    else:
-
-        return away_team
+    return away_team
 
 
-# ==================================================
-# SHOW RANDOMIZED ROUND OF 32
-# ==================================================
+# =========================
+# Round of 32
+# =========================
 
 print()
-
-print(
-    "########################################"
-)
-
-print(
-    "KNOCKOUT STAGE"
-)
-
-print(
-    "########################################"
-)
-
-print()
-
-print(
-    "The 32 qualified teams have been "
-    "randomly placed into the bracket."
-)
-
-print()
-
-
-for i in range(
-    0,
-    len(knockout_teams),
-    2
-):
-
-    team_1 = knockout_teams[i]
-
-    team_2 = knockout_teams[i + 1]
-
-
-    print(
-        f"Match {i // 2 + 1}: "
-        f"{team_1.team_name} vs "
-        f"{team_2.team_name}"
-    )
-
-
-# ==================================================
-# ROUND OF 32
-# ==================================================
-
-print()
-
-print(
-    "========================================"
-)
-
-print(
-    "ROUND OF 32"
-)
-
-print(
-    "========================================"
-)
-
+print("=" * 50)
+print("ROUND OF 32")
+print("=" * 50)
 
 round_of_32_winners = []
 
-
-for i in range(
-    0,
-    32,
-    2
-):
-
-    home_team = knockout_teams[i]
-
-    away_team = knockout_teams[i + 1]
-
-
-    print()
-
-    print(
-        "----------------------------------------"
-    )
-
-    print(
-        f"ROUND OF 32 - MATCH {i // 2 + 1}"
-    )
-
-    print(
-        f"{home_team.team_name} "
-        f"vs "
-        f"{away_team.team_name}"
-    )
-
-    print(
-        "----------------------------------------"
-    )
-
+for i in range(0, 32, 2):
 
     winner = play_knockout_match(
-        home_team,
-        away_team
+        knockout_teams[i],
+        knockout_teams[i + 1]
     )
-
 
     round_of_32_winners.append(
         winner
     )
 
 
-print()
-
-print(
-    "ROUND OF 32 COMPLETE"
-)
+# =========================
+# Round of 16
+# =========================
 
 print()
-
-print(
-    "Teams remaining:",
-    len(round_of_32_winners)
-)
-
-
-# ==================================================
-# ROUND OF 16
-# ==================================================
-
-print()
-
-print(
-    "========================================"
-)
-
-print(
-    "ROUND OF 16"
-)
-
-print(
-    "========================================"
-)
-
+print("=" * 50)
+print("ROUND OF 16")
+print("=" * 50)
 
 round_of_16_winners = []
-
 
 for i in range(
     0,
@@ -1528,78 +1437,26 @@ for i in range(
     2
 ):
 
-    home_team = round_of_32_winners[i]
-
-    away_team = round_of_32_winners[i + 1]
-
-
-    print()
-
-    print(
-        "----------------------------------------"
-    )
-
-    print(
-        f"ROUND OF 16 - MATCH {i // 2 + 1}"
-    )
-
-    print(
-        f"{home_team.team_name} "
-        f"vs "
-        f"{away_team.team_name}"
-    )
-
-    print(
-        "----------------------------------------"
-    )
-
-
     winner = play_knockout_match(
-        home_team,
-        away_team
+        round_of_32_winners[i],
+        round_of_32_winners[i + 1]
     )
-
 
     round_of_16_winners.append(
         winner
     )
 
 
-print()
-
-print(
-    "ROUND OF 16 COMPLETE"
-)
+# =========================
+# Quarter-finals
+# =========================
 
 print()
-
-print(
-    "Teams remaining:",
-    len(round_of_16_winners)
-)
-
-
-# ==================================================
-# QUARTER-FINALS
-# ==================================================
-
-print()
-
-print(
-    "========================================"
-)
-
-print(
-    "QUARTER-FINALS"
-)
-
-print(
-    "========================================"
-)
-
+print("=" * 50)
+print("QUARTER-FINALS")
+print("=" * 50)
 
 quarter_final_winners = []
-
 
 for i in range(
     0,
@@ -1607,78 +1464,26 @@ for i in range(
     2
 ):
 
-    home_team = round_of_16_winners[i]
-
-    away_team = round_of_16_winners[i + 1]
-
-
-    print()
-
-    print(
-        "----------------------------------------"
-    )
-
-    print(
-        f"QUARTER-FINAL - MATCH {i // 2 + 1}"
-    )
-
-    print(
-        f"{home_team.team_name} "
-        f"vs "
-        f"{away_team.team_name}"
-    )
-
-    print(
-        "----------------------------------------"
-    )
-
-
     winner = play_knockout_match(
-        home_team,
-        away_team
+        round_of_16_winners[i],
+        round_of_16_winners[i + 1]
     )
-
 
     quarter_final_winners.append(
         winner
     )
 
 
-print()
-
-print(
-    "QUARTER-FINALS COMPLETE"
-)
+# =========================
+# Semi-finals
+# =========================
 
 print()
-
-print(
-    "Teams remaining:",
-    len(quarter_final_winners)
-)
-
-
-# ==================================================
-# SEMI-FINALS
-# ==================================================
-
-print()
-
-print(
-    "========================================"
-)
-
-print(
-    "SEMI-FINALS"
-)
-
-print(
-    "========================================"
-)
-
+print("=" * 50)
+print("SEMI-FINALS")
+print("=" * 50)
 
 semi_final_winners = []
-
 
 for i in range(
     0,
@@ -1686,91 +1491,32 @@ for i in range(
     2
 ):
 
-    home_team = quarter_final_winners[i]
-
-    away_team = quarter_final_winners[i + 1]
-
-
-    print()
-
-    print(
-        "----------------------------------------"
-    )
-
-    print(
-        f"SEMI-FINAL - MATCH {i // 2 + 1}"
-    )
-
-    print(
-        f"{home_team.team_name} "
-        f"vs "
-        f"{away_team.team_name}"
-    )
-
-    print(
-        "----------------------------------------"
-    )
-
-
     winner = play_knockout_match(
-        home_team,
-        away_team
+        quarter_final_winners[i],
+        quarter_final_winners[i + 1]
     )
-
 
     semi_final_winners.append(
         winner
     )
 
 
-print()
-
-print(
-    "SEMI-FINALS COMPLETE"
-)
+# =========================
+# Final
+# =========================
 
 print()
+print("=" * 50)
+print("FINAL")
+print("=" * 50)
 
-print(
-    "Teams remaining:",
-    len(semi_final_winners)
+final_home_team = (
+    semi_final_winners[0]
 )
 
-
-# ==================================================
-# FINAL
-# ==================================================
-
-print()
-
-print(
-    "########################################"
+final_away_team = (
+    semi_final_winners[1]
 )
-
-print(
-    "WORLD CUP FINAL"
-)
-
-print(
-    "########################################"
-)
-
-
-final_home_team = semi_final_winners[0]
-
-final_away_team = semi_final_winners[1]
-
-
-print()
-
-print(
-    f"{final_home_team.team_name} "
-    f"vs "
-    f"{final_away_team.team_name}"
-)
-
-print()
-
 
 champion = play_knockout_match(
     final_home_team,
@@ -1778,32 +1524,184 @@ champion = play_knockout_match(
 )
 
 
-# ==================================================
-# WORLD CUP CHAMPION
-# ==================================================
+# =========================
+# Tournament Statistics
+# =========================
 
 print()
+print("=" * 60)
+print("TOURNAMENT STATISTICS")
+print("=" * 60)
 
-print(
-    "########################################"
+
+# =========================
+# Top Scorers
+# =========================
+
+sorted_scorers = sorted(
+    player_objects,
+    key=lambda player: (
+        player.goals,
+        player.player_of_match,
+        player.rating
+    ),
+    reverse=True
 )
 
-print(
-    "WORLD CUP CHAMPION"
+top_scorers = [
+    player
+    for player in sorted_scorers
+    if player.goals > 0
+]
+
+
+print()
+print("TOP SCORERS")
+print("-" * 60)
+
+if top_scorers:
+
+    for index, player in enumerate(
+        top_scorers[:10],
+        start=1
+    ):
+
+        team = next(
+            (
+                team
+                for team in team_objects
+                if team.team_id == player.team_id
+            ),
+            None
+        )
+
+        print(
+            f"{index}. "
+            f"{player.player_name} - "
+            f"{player.goals} goals - "
+            f"{team.team_name}"
+        )
+
+else:
+
+    print("No goals recorded.")
+
+
+# =========================
+# Most Player of the Match
+# =========================
+
+sorted_potm = sorted(
+    player_objects,
+    key=lambda player: (
+        player.player_of_match,
+        player.goals,
+        player.rating
+    ),
+    reverse=True
 )
 
+top_potm_players = [
+    player
+    for player in sorted_potm
+    if player.player_of_match > 0
+]
+
+
+print()
+print("MOST PLAYER OF THE MATCH AWARDS")
+print("-" * 60)
+
+if top_potm_players:
+
+    for index, player in enumerate(
+        top_potm_players[:10],
+        start=1
+    ):
+
+        team = next(
+            (
+                team
+                for team in team_objects
+                if team.team_id == player.team_id
+            ),
+            None
+        )
+
+        print(
+            f"{index}. "
+            f"{player.player_name} - "
+            f"{player.player_of_match} awards - "
+            f"{team.team_name}"
+        )
+
+else:
+
+    print(
+        "No Player of the Match awards recorded."
+    )
+
+
+# =========================
+# Champion
+# =========================
+
+print()
+print("=" * 60)
 print(
-    "########################################"
+    f"CHAMPION: "
+    f"{champion.team_name}"
+)
+print("=" * 60)
+
+
+# =========================
+# User Tournament Summary
+# =========================
+
+print()
+print("=" * 60)
+print("YOUR TOURNAMENT SUMMARY")
+print("=" * 60)
+
+user_players = sorted(
+    user_team.players,
+    key=lambda player: (
+        player.goals,
+        player.player_of_match,
+        player.rating
+    ),
+    reverse=True
 )
 
 print()
-
 print(
-    f"CHAMPION: {champion.team_name}"
+    f"Team: "
+    f"{user_team.team_name}"
 )
 
 print()
+print("Player Performance")
 
 print(
-    "########################################"
+    f"{'Player':<30}"
+    f"{'Matches':<10}"
+    f"{'Goals':<10}"
+    f"{'POTM':<10}"
 )
+
+print("-" * 60)
+
+for player in user_players:
+
+    print(
+        f"{player.player_name:<30}"
+        f"{player.matches:<10}"
+        f"{player.goals:<10}"
+        f"{player.player_of_match:<10}"
+    )
+
+print()
+print("=" * 60)
+print("TOURNAMENT COMPLETE")
+print("=" * 60)
