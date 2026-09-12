@@ -671,7 +671,7 @@ class MatchEngine:
 
         away_modifiers = (
             self.get_tactic_modifiers(
-                self.away_tactic
+                self.away_tactic )
             )
 
         # =========================
