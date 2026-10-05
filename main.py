@@ -1,6 +1,8 @@
 import csv
 import random
 import time
+import contextlib
+import io
 
 
 # =========================
@@ -1423,7 +1425,7 @@ class MatchEngine:
                 show_events=True
             )
 
-            time.sleep(0.2)
+            time.sleep(0.17)
 
         print()
         print()
@@ -2379,24 +2381,325 @@ print(
 )
 
 
+
+# =========================
+# Tournament Menu
+# =========================
+
+def show_user_match_history():
+    print()
+    print("=" * 70)
+    print("YOUR MATCH HISTORY")
+    print("=" * 70)
+
+    user_matches = [
+        match
+        for match in match_history
+        if (
+            match["home_team"] == user_team.team_name
+            or
+            match["away_team"] == user_team.team_name
+        )
+    ]
+
+    if user_matches:
+
+        for match in user_matches:
+
+            print()
+
+            print(
+                f"[{match['stage']}]"
+            )
+
+            print(
+                f"{match['home_team']} "
+                f"{match['home_score']} - "
+                f"{match['away_score']} "
+                f"{match['away_team']}"
+            )
+
+            if match["penalty"]:
+
+                print(
+                    f"Winner on penalties: "
+                    f"{match['winner']}"
+                )
+
+    else:
+
+        print(
+            "No matches found."
+        )
+
+    print("=" * 70)
+
+
+def show_top_scorers():
+
+    sorted_scorers = sorted(
+        player_objects,
+        key=lambda player: (
+            player.goals,
+            player.assists,
+            player.average_rating,
+            player.player_of_match,
+            player.rating
+        ),
+        reverse=True
+    )
+
+    top_scorers = [
+        player
+        for player in sorted_scorers
+        if player.goals > 0
+    ]
+
+    print()
+    print("=" * 60)
+    print("TOP SCORERS")
+    print("=" * 60)
+
+    if top_scorers:
+
+        for index, player in enumerate(
+            top_scorers[:10],
+            start=1
+        ):
+
+            team = next(
+                (
+                    team
+                    for team in team_objects
+                    if team.team_id == player.team_id
+                ),
+                None
+            )
+
+            print(
+                f"{index}. "
+                f"{player.player_name} - "
+                f"{player.goals} goals - "
+                f"{team.team_name}"
+            )
+
+    else:
+
+        print(
+            "No goals recorded."
+        )
+
+    print("=" * 60)
+
+
+def show_all_results():
+
+    print()
+    print("=" * 70)
+    print("ALL MATCH RESULTS")
+    print("=" * 70)
+
+    if not match_history:
+
+        print(
+            "No matches recorded."
+        )
+
+        return
+
+    for index, match in enumerate(
+        match_history,
+        start=1
+    ):
+
+        result = (
+            f"{match['home_team']} "
+            f"{match['home_score']} - "
+            f"{match['away_score']} "
+            f"{match['away_team']}"
+        )
+
+        print(
+            f"{index:02d}. "
+            f"[{match['stage']}] "
+            f"{result}"
+        )
+
+        if match["penalty"]:
+
+            print(
+                f"    Winner on penalties: "
+                f"{match['winner']}"
+            )
+
+    print("=" * 70)
+
+
+def show_tournament_menu():
+
+    while True:
+
+        print()
+        print("=" * 55)
+        print("WORLD CUP 2026 - TOURNAMENT MENU")
+        print("=" * 55)
+        print(f"Your team: {user_team.team_name}")
+        print()
+        print("1. Continue tournament")
+        print("2. My match history")
+        print("3. Group tables")
+        print("4. All match results")
+        print("5. Top scorers")
+        print("6. Back")
+
+        choice = input(
+            "Choose an option: "
+        )
+
+        if choice == "1":
+
+            return
+
+        if choice == "2":
+
+            show_user_match_history()
+
+        elif choice == "3":
+
+            print()
+            print("Available groups:")
+
+            group_names = sorted(
+                group_tables.keys()
+            )
+
+            for index, group_name in enumerate(
+                group_names,
+                start=1
+            ):
+
+                print(
+                    f"{index}. Group {group_name}"
+                )
+
+            print("0. Back")
+
+            group_choice = input(
+                "Choose a group: "
+            )
+
+            if group_choice == "0":
+                continue
+
+            try:
+
+                group_index = int(
+                    group_choice
+                )
+
+                if 1 <= group_index <= len(group_names):
+
+                    show_group_table(
+                        group_names[group_index - 1]
+                    )
+
+                else:
+
+                    print(
+                        "Invalid group."
+                    )
+
+            except ValueError:
+
+                print(
+                    "Please enter a valid number."
+                )
+
+        elif choice == "4":
+
+            show_all_results()
+
+        elif choice == "5":
+
+            show_top_scorers()
+
+        elif choice == "6":
+
+            return
+
+        else:
+
+            print(
+                "Invalid choice."
+            )
+
+
+def show_start_menu():
+
+    while True:
+
+        print()
+        print("=" * 55)
+        print("WORLD CUP 2026 SIMULATOR")
+        print("=" * 55)
+        print(f"Your team: {user_team.team_name}")
+        print(f"Your team strength: {user_team.strength}")
+        print()
+        print("1. Start Tournament")
+        print("2. Exit")
+
+        choice = input(
+            "Choose an option: "
+        )
+
+        if choice == "1":
+
+            return True
+
+        if choice == "2":
+
+            return False
+
+        print(
+            "Invalid choice."
+        )
+
+
+def run_silent(function, *args, **kwargs):
+
+    with contextlib.redirect_stdout(
+        io.StringIO()
+    ):
+
+        return function(
+            *args,
+            **kwargs
+        )
+
+
+def play_next_user_match_menu():
+
+    show_tournament_menu()
+
+
+# =========================
+# Start Tournament
+# =========================
+
+if not show_start_menu():
+
+    print()
+    print("Tournament cancelled.")
+    raise SystemExit
+
+
 # =========================
 # Group Stage
 # =========================
 
-print()
-print("=" * 50)
-print("GROUP STAGE")
-print("=" * 50)
-
 for group_name in sorted(
     group_matches.keys()
 ):
-
-    print()
-    print(
-        f"Starting Group "
-        f"{group_name}"
-    )
 
     for home_team, away_team in (
         group_matches[group_name]
@@ -2413,6 +2716,8 @@ for group_name in sorted(
             home_team == user_team
             or away_team == user_team
         ):
+
+            play_next_user_match_menu()
 
             if home_team == user_team:
 
@@ -2462,23 +2767,8 @@ for group_name in sorted(
                 home_score,
                 away_score,
                 player_of_match
-            ) = match_engine.quick_match()
-
-            print(
-                f"{home_team.team_name} "
-                f"{home_score} - "
-                f"{away_score} "
-                f"{away_team.team_name}"
-            )
-
-            print(
-                f"Player of the Match: "
-                f"{player_of_match.player_name}"
-            )
-
-            print(
-                f"Player of the Match Rating: "
-                f"{match_engine.player_match_ratings.get(player_of_match.player_id, 0):.1f}"
+            ) = run_silent(
+                match_engine.quick_match
             )
 
             record_match_history(
@@ -2496,10 +2786,6 @@ for group_name in sorted(
             home_score,
             away_score
         )
-
-    show_group_table(
-        group_name
-    )
 
 
 # =========================
@@ -2573,29 +2859,6 @@ for team_data in (
     )
 
 
-print()
-print("=" * 50)
-print("QUALIFIED TEAMS")
-print("=" * 50)
-
-for index, team in enumerate(
-    qualified_teams,
-    start=1
-):
-
-    print(
-        f"{index:02d}. "
-        f"{team.team_name}"
-    )
-
-
-print()
-print(
-    f"Total qualified teams: "
-    f"{len(qualified_teams)}"
-)
-
-
 # =========================
 # Knockout Stage
 # =========================
@@ -2630,6 +2893,8 @@ def play_knockout_match(
         home_team == user_team
         or away_team == user_team
     ):
+
+        play_next_user_match_menu()
 
         if home_team == user_team:
 
@@ -2671,24 +2936,8 @@ def play_knockout_match(
             home_score,
             away_score,
             player_of_match
-        ) = match_engine.quick_match()
-
-        print()
-        print(
-            f"{home_team.team_name} "
-            f"{home_score} - "
-            f"{away_score} "
-            f"{away_team.team_name}"
-        )
-
-        print(
-            f"Player of the Match: "
-            f"{player_of_match.player_name}"
-        )
-
-        print(
-            f"Rating: "
-            f"{match_engine.player_match_ratings.get(player_of_match.player_id, 0):.1f}"
+        ) = run_silent(
+            match_engine.quick_match
         )
 
     # Normal winner
@@ -2727,12 +2976,21 @@ def play_knockout_match(
     # Extra Time
     # =========================
 
-    match_engine.play_extra_time(
-        show_events=(
-            home_team == user_team
-            or away_team == user_team
+    if (
+        home_team == user_team
+        or away_team == user_team
+    ):
+
+        match_engine.play_extra_time(
+            show_events=True
         )
-    )
+
+    else:
+
+        run_silent(
+            match_engine.play_extra_time,
+            show_events=False
+        )
 
     home_score = (
         match_engine.home_score
@@ -2755,10 +3013,15 @@ def play_knockout_match(
             winner
         )
 
-        print(
-            f"Winner after extra time: "
-            f"{winner.team_name}"
-        )
+        if (
+            home_team == user_team
+            or away_team == user_team
+        ):
+
+            print(
+                f"Winner after extra time: "
+                f"{winner.team_name}"
+            )
 
         return winner
 
@@ -2775,10 +3038,15 @@ def play_knockout_match(
             winner
         )
 
-        print(
-            f"Winner after extra time: "
-            f"{winner.team_name}"
-        )
+        if (
+            home_team == user_team
+            or away_team == user_team
+        ):
+
+            print(
+                f"Winner after extra time: "
+                f"{winner.team_name}"
+            )
 
         return winner
 
@@ -2786,9 +3054,20 @@ def play_knockout_match(
     # Penalty Shootout
     # =========================
 
-    winner = (
-        match_engine.play_penalty_shootout()
-    )
+    if (
+        home_team == user_team
+        or away_team == user_team
+    ):
+
+        winner = (
+            match_engine.play_penalty_shootout()
+        )
+
+    else:
+
+        winner = run_silent(
+            match_engine.play_penalty_shootout
+        )
 
     record_match_history(
         stage,
@@ -2806,11 +3085,6 @@ def play_knockout_match(
 # =========================
 # Round of 32
 # =========================
-
-print()
-print("=" * 50)
-print("ROUND OF 32")
-print("=" * 50)
 
 round_of_32_winners = []
 
@@ -2835,11 +3109,6 @@ for i in range(
 # Round of 16
 # =========================
 
-print()
-print("=" * 50)
-print("ROUND OF 16")
-print("=" * 50)
-
 round_of_16_winners = []
 
 for i in range(
@@ -2862,11 +3131,6 @@ for i in range(
 # =========================
 # Quarter-finals
 # =========================
-
-print()
-print("=" * 50)
-print("QUARTER-FINALS")
-print("=" * 50)
 
 quarter_final_winners = []
 
@@ -2891,11 +3155,6 @@ for i in range(
 # Semi-finals
 # =========================
 
-print()
-print("=" * 50)
-print("SEMI-FINALS")
-print("=" * 50)
-
 semi_final_winners = []
 
 for i in range(
@@ -2919,11 +3178,6 @@ for i in range(
 # Final
 # =========================
 
-print()
-print("=" * 50)
-print("FINAL")
-print("=" * 50)
-
 final_home_team = (
     semi_final_winners[0]
 )
@@ -2940,237 +3194,7 @@ champion = play_knockout_match(
 
 
 # =========================
-# Tournament Statistics
-# =========================
-
-print()
-print("=" * 60)
-print("TOURNAMENT STATISTICS")
-print("=" * 60)
-
-
-# =========================
-# Top Scorers
-# =========================
-
-sorted_scorers = sorted(
-    player_objects,
-    key=lambda player: (
-        player.goals,
-        player.assists,
-        player.average_rating,
-        player.player_of_match,
-        player.rating
-    ),
-    reverse=True
-)
-
-top_scorers = [
-    player
-    for player in sorted_scorers
-    if player.goals > 0
-]
-
-
-print()
-print("TOP SCORERS")
-print("-" * 60)
-
-if top_scorers:
-
-    for index, player in enumerate(
-        top_scorers[:10],
-        start=1
-    ):
-
-        team = next(
-            (
-                team
-                for team in team_objects
-                if team.team_id
-                == player.team_id
-            ),
-            None
-        )
-
-        print(
-            f"{index}. "
-            f"{player.player_name} - "
-            f"{player.goals} goals - "
-            f"{team.team_name}"
-        )
-
-else:
-
-    print(
-        "No goals recorded."
-    )
-
-
-# =========================
-# Most Player of the Match
-# =========================
-
-sorted_potm = sorted(
-    player_objects,
-    key=lambda player: (
-        player.player_of_match,
-        player.average_rating,
-        player.goals,
-        player.rating
-    ),
-    reverse=True
-)
-
-top_potm_players = [
-    player
-    for player in sorted_potm
-    if player.player_of_match > 0
-]
-
-
-print()
-print(
-    "MOST PLAYER OF THE MATCH AWARDS"
-)
-
-print("-" * 60)
-
-if top_potm_players:
-
-    for index, player in enumerate(
-        top_potm_players[:10],
-        start=1
-    ):
-
-        team = next(
-            (
-                team
-                for team in team_objects
-                if team.team_id
-                == player.team_id
-            ),
-            None
-        )
-
-        print(
-            f"{index}. "
-            f"{player.player_name} - "
-            f"{player.player_of_match} awards - "
-            f"{team.team_name}"
-        )
-
-else:
-
-    print(
-        "No Player of the Match awards recorded."
-    )
-
-
-# =========================
-# Most Assists
-# =========================
-
-sorted_assists = sorted(
-    player_objects,
-    key=lambda player: (
-        player.assists,
-        player.goals,
-        player.average_rating,
-        player.rating
-    ),
-    reverse=True
-)
-
-top_assists = [
-    player
-    for player in sorted_assists
-    if player.assists > 0
-]
-
-
-print()
-print("MOST ASSISTS")
-print("-" * 60)
-
-if top_assists:
-
-    for index, player in enumerate(
-        top_assists[:10],
-        start=1
-    ):
-
-        team = next(
-            (
-                team
-                for team in team_objects
-                if team.team_id
-                == player.team_id
-            ),
-            None
-        )
-
-        print(
-            f"{index}. "
-            f"{player.player_name} - "
-            f"{player.assists} assists - "
-            f"{team.team_name}"
-        )
-
-else:
-
-    print(
-        "No assists recorded."
-    )
-
-
-# =========================
-# Best Player Ratings
-# =========================
-
-players_with_ratings = [
-    player
-    for player in player_objects
-    if player.matches > 0
-]
-
-players_with_ratings.sort(
-    key=lambda player: (
-        player.average_rating,
-        player.goals,
-        player.assists,
-        player.player_of_match
-    ),
-    reverse=True
-)
-
-print()
-print("BEST PLAYER RATINGS")
-print("-" * 70)
-
-print(
-    f"{'Player':<30}"
-    f"{'Matches':<10}"
-    f"{'Avg Rating':<12}"
-    f"{'Goals':<10}"
-    f"{'Assists':<10}"
-)
-
-print("-" * 70)
-
-for player in players_with_ratings[:10]:
-
-    print(
-        f"{player.player_name:<30}"
-        f"{player.matches:<10}"
-        f"{player.average_rating:<12.1f}"
-        f"{player.goals:<10}"
-        f"{player.assists:<10}"
-    )
-
-
-# =========================
-# Champion
+# Tournament Complete
 # =========================
 
 print()
@@ -3181,124 +3205,98 @@ print(
 )
 print("=" * 60)
 
-
-# =========================
-# User Match History
-# =========================
-
 print()
-print("=" * 60)
-print("YOUR MATCH HISTORY")
-print("=" * 60)
+print("Tournament complete.")
 
-user_matches = [
-    match
-    for match in match_history
-    if (
-        match["home_team"]
-        == user_team.team_name
-        or
-        match["away_team"]
-        == user_team.team_name
+while True:
+
+    print()
+    print("=" * 55)
+    print("FINAL TOURNAMENT MENU")
+    print("=" * 55)
+    print("1. My match history")
+    print("2. Group tables")
+    print("3. All match results")
+    print("4. Top scorers")
+    print("5. Exit")
+
+    choice = input(
+        "Choose an option: "
     )
-]
 
-if user_matches:
+    if choice == "1":
 
-    for match in user_matches:
+        show_user_match_history()
+
+    elif choice == "2":
 
         print()
+        print("Available groups:")
 
-        print(
-            f"[{match['stage']}]"
+        group_names = sorted(
+            group_tables.keys()
         )
 
-        print(
-            f"{match['home_team']} "
-            f"{match['home_score']} - "
-            f"{match['away_score']} "
-            f"{match['away_team']}"
-        )
-
-        if match["penalty"]:
+        for index, group_name in enumerate(
+            group_names,
+            start=1
+        ):
 
             print(
-                f"Winner on penalties: "
-                f"{match['winner']}"
+                f"{index}. Group {group_name}"
             )
 
-else:
+        print("0. Back")
 
-    print(
-        "No matches found."
-    )
+        group_choice = input(
+            "Choose a group: "
+        )
 
+        if group_choice == "0":
+            continue
 
-# =========================
-# User Tournament Summary
-# =========================
+        try:
 
-print()
-print("=" * 60)
-print("YOUR TOURNAMENT SUMMARY")
-print("=" * 60)
+            group_index = int(
+                group_choice
+            )
 
-user_players = sorted(
-    user_team.players,
-    key=lambda player: (
-        player.goals,
-        player.assists,
-        player.average_rating,
-        player.player_of_match,
-        player.rating
-    ),
-    reverse=True
-)
+            if 1 <= group_index <= len(group_names):
 
-print()
-print(
-    f"Team: "
-    f"{user_team.team_name}"
-)
+                show_group_table(
+                    group_names[group_index - 1]
+                )
 
-print()
-print("Player Performance")
+            else:
 
-print(
-    f"{'Player':<30}"
-    f"{'Matches':<10}"
-    f"{'Goals':<10}"
-    f"{'Assists':<10}"
-    f"{'POTM':<10}"
-    f"{'Avg Rating':<12}"
-)
+                print(
+                    "Invalid group."
+                )
 
-print("-" * 82)
+        except ValueError:
 
-for player in user_players:
+            print(
+                "Please enter a valid number."
+            )
 
-    print(
-        f"{player.player_name:<30}"
-        f"{player.matches:<10}"
-        f"{player.goals:<10}"
-        f"{player.assists:<10}"
-        f"{player.player_of_match:<10}"
-        f"{player.average_rating:<12.1f}"
-    )
+    elif choice == "3":
 
+        show_all_results()
 
-# =========================
-# Full Match History
-# =========================
+    elif choice == "4":
 
-show_match_history()
+        show_top_scorers()
 
+    elif choice == "5":
 
-# =========================
-# Tournament Complete
-# =========================
+        print(
+            "Goodbye."
+        )
 
-print()
-print("=" * 60)
-print("TOURNAMENT COMPLETE")
-print("=" * 60)
+        break
+
+    else:
+
+        print(
+            "Invalid choice."
+        )
